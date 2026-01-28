@@ -31,7 +31,7 @@ export const documentServiceLegacy = {
 };
 
 // Servicios Legacy para Extracción OCR (Escenario 1.2)
-export const ocrService = {
+export const ocrServiceLegacy = {
   // Procesar documento con OCR
   processDocument: (documentId) => 
     api.post(`/ocr/process/${documentId}`),
@@ -95,8 +95,8 @@ export const appointmentService = {
     api.get(`/cases/${caseId}/appointments`),
 };
 
-// Servicios para Gestión de Trámites
-export const caseService = {
+// Servicios Legacy para Gestión de Trámites
+export const caseServiceLegacy = {
   // Obtener todos los trámites
   getAllCases: () => api.get('/cases'),
   
