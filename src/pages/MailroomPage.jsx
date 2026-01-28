@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
 import { useDemoData } from '../contexts/DemoContext';
+import { documentService, caseService } from '../services';
 
 const MailroomPage = () => {
   const { documents, cases, linkDocument } = useDemoData();
@@ -9,6 +10,7 @@ const MailroomPage = () => {
   const [selectedCase, setSelectedCase] = useState('');
   const [toast, setToast] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
@@ -35,20 +37,18 @@ const MailroomPage = () => {
     }
 
     try {
-      // await documentService.linkDocumentToCase(selectedDocument.id, selectedCase);
+      // Llamar al backend real
+      await caseService.linkDocument(selectedCase, selectedDocument.id);
       
       // Actualizar estado localmente
-      setDocuments(docs => docs.map(doc => 
-        doc.id === selectedDocument.id 
-          ? { ...doc, status: 'RECIBIDO', caseId: selectedCase }
-          : doc
-      ));
+      linkDocument(selectedDocument.id, selectedCase);
       
       showToast('Documento vinculado exitosamente', 'success');
       setSelectedDocument(null);
       setSelectedCase('');
     } catch (error) {
-      showToast('Error al vincular el documento', 'error');
+      console.error('Error al vincular documento:', error);
+      showToast(error.response?.data?.detail || 'Error al vincular el documento', 'error');
     }
   };
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
 import { useDemoData } from '../contexts/DemoContext';
+import { ocrService } from '../services';
 
 const OCRExtractionPage = () => {
   const { documents, updateOCRStatus } = useDemoData();
@@ -27,13 +28,21 @@ const OCRExtractionPage = () => {
     setManualEdit(false);
 
     try {
-      // await ocrService.processDocument(doc.id);
+      // Llamar al servicio OCR real del backend
+      const result = await ocrService.processExistingDocument(doc.id);
       
-      // Simulación de extracción OCR
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Simular resultados basados en el tipo de documento
-      if (doc.id === 'DOC_ERR') {
+      if (result.status === 'ok') {
+        // Extracción exitosa
+        const data = {
+          status: 'COMPLETADO',
+          confidence: result.confianza || 0.95,
+          fields: result.datos || {},
+        };
+        
+        setExtractedData(data);
+        updateOCRStatus(doc.id, 'PROCESADO');
+        showToast('Extracción completada exitosamente', 'success');
+      } else {
         // Error de lectura
         showToast('No se pudo extraer información automáticamente', 'error');
         setManualEdit(true);
@@ -42,55 +51,22 @@ const OCRExtractionPage = () => {
           confidence: 0,
           fields: {},
         });
-      } else if (doc.id === 'DOC_002') {
-        // Baja confianza
-        const data = {
-          status: 'REVISION_MANUAL',
-          confidence: 0.55,
-          fields: {
-            'Número de Pasaporte': { value: 'EC1234567', confidence: 0.85 },
-            'Nombre': { value: 'JUAN PEREZ', confidence: 0.90 },
-            'Apellido': { value: 'GOMEZ', confidence: 0.45 }, // Baja confianza
-            'Fecha de Nacimiento': { value: '1985-03-15', confidence: 0.88 },
-            'Fecha de Expedición': { value: '2020-01-10', confidence: 0.92 },
-          },
-        };
-        setExtractedData(data);
-        showToast('Se detectó baja confianza en algunos campos', 'warning');
-      } else if (doc.type === 'Cédula Ecuador') {
-        // Extracción exitosa
-        const data = {
-          status: 'COMPLETADO',
-          confidence: 0.95,
-          fields: {
-            'Número de Cédula': { value: '1710010010', confidence: 0.98 },
-            'Nombre': { value: 'JUAN CARLOS', confidence: 0.96 },
-            'Apellido': { value: 'PEREZ GOMEZ', confidence: 0.94 },
-            'Fecha de Nacimiento': { value: '1980-05-10', confidence: 0.97 },
-            'Lugar de Nacimiento': { value: 'QUITO', confidence: 0.92 },
-          },
-        };
-        setExtractedData(data);
-        showToast('Extracción completada exitosamente', 'success');
-      } else if (doc.type === 'Visa Americana') {
-        const data = {
-          status: 'COMPLETADO',
-          confidence: 0.93,
-          fields: {
-            'Número de Control': { value: '202312345678', confidence: 0.95 },
-            'Tipo de Visa': { value: 'B1/B2', confidence: 0.96 },
-            'Fecha de Emisión': { value: '2023-06-15', confidence: 0.94 },
-            'Fecha de Vencimiento': { value: '2033-06-15', confidence: 0.94 },
-          },
-        };
-        setExtractedData(data);
-        showToast('Extracción completada exitosamente', 'success');
       }
-
-      // Actualizar documento procesado
-      updateOCRStatus(doc.id, 'PROCESADO');
     } catch (error) {
-      showToast('Error al procesar el documento', 'error');
+      console.error('Error al procesar documento:', error);
+      
+      // Si el backend retorna error 400, habilitar ingreso manual
+      if (error.response?.status === 400) {
+        showToast('No se pudo extraer información automáticamente', 'error');
+        setManualEdit(true);
+        setExtractedData({
+          status: 'ERROR',
+          confidence: 0,
+          fields: {},
+        });
+      } else {
+        showToast(error.response?.data?.detail || 'Error al procesar el documento', 'error');
+      }
     } finally {
       setProcessing(false);
     }

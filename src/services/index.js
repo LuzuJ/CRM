@@ -1,7 +1,20 @@
-import api from './api';
+// Exportar la instancia de axios configurada
+export { default as api } from './api';
 
-// Servicios para Clasificación de Documentos (Escenario 1.1)
-export const documentService = {
+// Exportar servicios específicos alineados con el backend real
+export { documentService } from './documentService';
+export { ocrService } from './ocrService';
+export { caseService } from './caseService';
+export { dashboardService } from './dashboardService';
+
+// ============================================================================
+// SERVICIOS LEGACY (Para compatibilidad con código existente)
+// Se mantienen para evitar romper componentes que los usen
+// Pero deberían migrarse gradualmente a los nuevos servicios
+// ============================================================================
+
+// Servicios Legacy para Clasificación de Documentos (Escenario 1.1)
+export const documentServiceLegacy = {
   // Obtener documentos pendientes
   getPendingDocuments: () => api.get('/documents/pending'),
   
@@ -17,7 +30,7 @@ export const documentService = {
     api.patch(`/documents/${documentId}/status`, { status }),
 };
 
-// Servicios para Extracción OCR (Escenario 1.2)
+// Servicios Legacy para Extracción OCR (Escenario 1.2)
 export const ocrService = {
   // Procesar documento con OCR
   processDocument: (documentId) => 

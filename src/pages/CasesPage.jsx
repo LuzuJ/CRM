@@ -1,15 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
 import { useDemoData } from '../contexts/DemoContext';
 import { useAuth } from '../contexts/AuthContext';
+import { caseService } from '../services';
 
 const CasesPage = () => {
   const { cases } = useDemoData();
   const { user } = useAuth();
   const [toast, setToast] = useState(null);
   const [filter, setFilter] = useState('all'); // all, active, closed
+  const [backendCases, setBackendCases] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Cargar casos desde el backend al montar el componente
+  useEffect(() => {
+    loadCasesFromBackend();
+  }, []);
+
+  const loadCasesFromBackend = async () => {
+    try {
+      setLoading(true);
+      const data = await caseService.listCases();
+      setBackendCases(data);
+    } catch (error) {
+      console.error('Error al cargar casos:', error);
+      // Si falla, usar datos del contexto
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filtrar casos según el rol del usuario
   const userCases = user?.role === 'cliente'

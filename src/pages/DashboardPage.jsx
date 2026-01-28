@@ -1,11 +1,43 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useDemoData } from '../contexts/DemoContext';
 import { useAuth } from '../contexts/AuthContext';
+import { dashboardService } from '../services';
 
 const DashboardPage = () => {
   const { cases, documents, appointments, profiles } = useDemoData();
   const { user } = useAuth();
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // Cargar datos del dashboard desde el backend
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const data = await dashboardService.getSummary();
+      setDashboardData(data);
+    } catch (error) {
+      console.error('Error al cargar dashboard:', error);
+      // Si falla, usar datos locales del contexto
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExecuteMonitoring = async () => {
+    try {
+      await dashboardService.executeMonitoring();
+      // Recargar datos después del monitoreo
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Error al ejecutar monitoreo:', error);
+    }
+  };
   
   // Filtrar datos según el rol
   const userCases = user?.role === 'cliente' 
