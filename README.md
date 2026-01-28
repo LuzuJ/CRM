@@ -1,8 +1,53 @@
-# CRM Legal - Sistema de Gestión Migratoria
+# 🏢 CRM Legal Migration - Sistema de Gestión Migratoria
 
-Sistema CRM para gestión de trámites migratorios, desarrollado en React con comunicación al backend mediante Axios.
+Sistema completo de gestión de trámites migratorios con **Frontend React + Backend FastAPI + PostgreSQL**.
 
-## 🚀 Tecnologías
+[![Estado](https://img.shields.io/badge/Estado-Producción%20Ready-success)](.)
+[![Backend](https://img.shields.io/badge/Backend-FastAPI-009688)](./back_completo)
+[![Frontend](https://img.shields.io/badge/Frontend-React%2018-61DAFB)](./src)
+[![Integración](https://img.shields.io/badge/Integración-100%25-brightgreen)](./BACKEND_FRONTEND_INTEGRATION_STATUS.md)
+
+## 🚀 Inicio Rápido
+
+### 1️⃣ Verificar Integración
+
+```bash
+# Windows
+verify_integration.bat
+
+# Linux/Mac
+chmod +x verify_integration.sh
+./verify_integration.sh
+```
+
+### 2️⃣ Iniciar Backend
+
+```bash
+cd back_completo
+
+# Windows
+start_backend.bat
+
+# Linux/Mac  
+chmod +x start_backend.sh
+./start_backend.sh
+```
+
+### 3️⃣ Iniciar Frontend
+
+```bash
+# En la raíz del proyecto
+npm run dev
+```
+
+**Acceder a:**
+- 🌐 Frontend: http://localhost:5173
+- 📚 API Docs: http://127.0.0.1:8000/docs
+- 🔧 API: http://127.0.0.1:8000
+
+---
+
+## 🎯 Tecnologías
 
 - **Frontend**: React 18 + Vite
 - **Estilos**: TailwindCSS

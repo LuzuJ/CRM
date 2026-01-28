@@ -7,11 +7,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { caseService } from '../services';
 
 const CasesPage = () => {
-  const { cases } = useDemoData();
+  const { cases: fallbackCases } = useDemoData();
   const { user } = useAuth();
   const [toast, setToast] = useState(null);
   const [filter, setFilter] = useState('all'); // all, active, closed
-  const [backendCases, setBackendCases] = useState([]);
+  const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Cargar casos desde el backend al montar el componente
@@ -23,10 +23,21 @@ const CasesPage = () => {
     try {
       setLoading(true);
       const data = await caseService.listCases();
-      setBackendCases(data);
+      // Mapear datos del backend al formato esperado
+      const mappedCases = data.map(c => ({
+        id: c.id,
+        type: c.tipo_visa || 'N/A',
+        applicant: c.cliente?.nombres + ' ' + c.cliente?.apellidos || 'N/A',
+        status: c.estado,
+        legalStatus: c.cliente?.estado_migratorio || 'PENDIENTE',
+        createdDate: c.fecha_inicio?.split('T')[0],
+        lastUpdate: c.fecha_actualizacion?.split('T')[0] || c.fecha_inicio?.split('T')[0]
+      }));
+      setCases(mappedCases.length > 0 ? mappedCases : fallbackCases);
     } catch (error) {
       console.error('Error al cargar casos:', error);
       // Si falla, usar datos del contexto
+      setCases(fallbackCases);
     } finally {
       setLoading(false);
     }

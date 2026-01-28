@@ -5,12 +5,39 @@ import { useDemoData } from '../contexts/DemoContext';
 import { documentService, caseService } from '../services';
 
 const MailroomPage = () => {
-  const { documents, cases, linkDocument } = useDemoData();
+  const { documents: fallbackDocs, cases: fallbackCases } = useDemoData();
+  const [documents, setDocuments] = useState([]);
+  const [cases, setCases] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [selectedCase, setSelectedCase] = useState('');
   const [toast, setToast] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Cargar datos desde el backend
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Intentar cargar desde backend
+      const [docsData, casesData] = await Promise.all([
+        documentService.listDocuments().catch(() => fallbackDocs),
+        caseService.listCases().catch(() => fallbackCases)
+      ]);
+      setDocuments(docsData);
+      setCases(casesData);
+    } catch (error) {
+      console.error('Error cargando datos:', error);
+      setDocuments(fallbackDocs);
+      setCases(fallbackCases);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
@@ -40,8 +67,8 @@ const MailroomPage = () => {
       // Llamar al backend real
       await caseService.linkDocument(selectedCase, selectedDocument.id);
       
-      // Actualizar estado localmente
-      linkDocument(selectedDocument.id, selectedCase);
+      // Recargar datos después de vincular
+      await loadData();
       
       showToast('Documento vinculado exitosamente', 'success');
       setSelectedDocument(null);

@@ -6,10 +6,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { dashboardService } from '../services';
 
 const DashboardPage = () => {
-  const { cases, documents, appointments, profiles } = useDemoData();
+  const { cases: fallbackCases, documents: fallbackDocs, appointments: fallbackAppts, profiles: fallbackProfiles } = useDemoData();
   const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [cases, setCases] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [profiles, setProfiles] = useState([]);
 
   // Cargar datos del dashboard desde el backend
   useEffect(() => {
@@ -21,9 +25,19 @@ const DashboardPage = () => {
       setLoading(true);
       const data = await dashboardService.getSummary();
       setDashboardData(data);
+      
+      // Usar datos del backend si están disponibles
+      setCases(data.tramites || fallbackCases);
+      setDocuments(data.documentos || fallbackDocs);
+      setAppointments(data.citas || fallbackAppts);
+      setProfiles(fallbackProfiles); // Usar fallback para perfiles por ahora
     } catch (error) {
       console.error('Error al cargar dashboard:', error);
       // Si falla, usar datos locales del contexto
+      setCases(fallbackCases);
+      setDocuments(fallbackDocs);
+      setAppointments(fallbackAppts);
+      setProfiles(fallbackProfiles);
     } finally {
       setLoading(false);
     }
