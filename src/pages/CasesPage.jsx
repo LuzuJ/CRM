@@ -3,11 +3,18 @@ import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
 import { useDemoData } from '../contexts/DemoContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const CasesPage = () => {
   const { cases } = useDemoData();
+  const { user } = useAuth();
   const [toast, setToast] = useState(null);
   const [filter, setFilter] = useState('all'); // all, active, closed
+
+  // Filtrar casos según el rol del usuario
+  const userCases = user?.role === 'cliente'
+    ? cases.filter(c => c.id === user.caseId)
+    : cases;
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
@@ -34,14 +41,19 @@ const CasesPage = () => {
     return icons[status] || 'folder';
   };
 
-  const filteredCases = cases.filter(c => {
+  const filteredCases = userCases.filter(c => {
     if (filter === 'active') return c.status === 'ACTIVO';
     if (filter === 'closed') return c.status === 'CERRADO' || c.status === 'ARCHIVADO';
     return true;
   });
 
+  const pageTitle = user?.role === 'cliente' ? 'Mi Trámite' : 'Gestión de Casos';
+  const pageSubtitle = user?.role === 'cliente' 
+    ? 'Estado de tu trámite migratorio' 
+    : 'Todos los trámites migratorios';
+
   return (
-    <Layout title="Gestión de Casos" subtitle="Todos los trámites migratorios">
+    <Layout title={pageTitle} subtitle={pageSubtitle}>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       
       <div className="space-y-6">
@@ -52,7 +64,7 @@ const CasesPage = () => {
                 <div>
                   <p className="text-sm text-slate-500 mb-1">Casos Activos</p>
                   <p className="text-3xl font-bold text-slate-900">
-                    {cases.filter(c => c.status === 'ACTIVO').length}
+                    {userCases.filter(c => c.status === 'ACTIVO').length}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
@@ -68,7 +80,7 @@ const CasesPage = () => {
                 <div>
                   <p className="text-sm text-slate-500 mb-1">Casos Cerrados</p>
                   <p className="text-3xl font-bold text-slate-900">
-                    {cases.filter(c => c.status === 'CERRADO').length}
+                    {userCases.filter(c => c.status === 'CERRADO').length}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-slate-500 rounded-lg flex items-center justify-center">
@@ -102,7 +114,7 @@ const CasesPage = () => {
                 filter === 'all' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              Todos ({cases.length})
+              Todos ({userCases.length})
             </button>
             <button
               onClick={() => setFilter('active')}
@@ -110,7 +122,7 @@ const CasesPage = () => {
                 filter === 'active' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              Activos ({cases.filter(c => c.status === 'ACTIVO').length})
+              Activos ({userCases.filter(c => c.status === 'ACTIVO').length})
             </button>
             <button
               onClick={() => setFilter('closed')}
@@ -118,7 +130,7 @@ const CasesPage = () => {
                 filter === 'closed' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              Finalizados ({cases.filter(c => c.status === 'CERRADO' || c.status === 'ARCHIVADO').length})
+              Finalizados ({userCases.filter(c => c.status === 'CERRADO' || c.status === 'ARCHIVADO').length})
             </button>
           </div>
 

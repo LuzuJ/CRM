@@ -1,18 +1,34 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const Sidebar = () => {
   const location = useLocation();
+  const { user } = useAuth();
 
-  const navItems = [
-    { path: '/', icon: 'dashboard', label: 'Dashboard' },
-    { path: '/mailroom', icon: 'inbox', label: 'Mailroom', filled: true },
-    { path: '/ocr-extraction', icon: 'mark_email_read', label: 'Verificación OCR' },
-    { path: '/cases', icon: 'folder_shared', label: 'Cases', filled: true },
-    { path: '/appointments', icon: 'calendar_month', label: 'Agendamiento' },
-    { path: '/deadlines', icon: 'calendar_clock', label: 'Deadlines Tower', filled: true },
-    { path: '/compliance', icon: 'verified', label: 'Validación Legal' },
-    { path: '/settings', icon: 'settings', label: 'Settings' },
-  ];
+  // Configuración de navegación según rol
+  const getNavItems = () => {
+    const baseItems = [
+      { path: '/', icon: 'dashboard', label: 'Dashboard', roles: ['agente', 'cliente'] },
+      { path: '/cases', icon: 'folder_shared', label: 'Mis Casos', filled: true, roles: ['agente', 'cliente'] },
+    ];
+
+    const agentItems = [
+      { path: '/mailroom', icon: 'inbox', label: 'Mailroom', filled: true, roles: ['agente'] },
+      { path: '/ocr-extraction', icon: 'mark_email_read', label: 'Verificación OCR', roles: ['agente'] },
+      { path: '/compliance', icon: 'verified', label: 'Validación Legal', roles: ['agente'] },
+      { path: '/appointments', icon: 'calendar_month', label: 'Agendamiento', roles: ['agente', 'cliente'] },
+      { path: '/deadlines', icon: 'calendar_clock', label: 'Deadlines Tower', filled: true, roles: ['agente'] },
+    ];
+
+    const settingsItem = { path: '/settings', icon: 'settings', label: 'Configuración', roles: ['agente', 'cliente'] };
+
+    const allItems = [...baseItems, ...agentItems, settingsItem];
+
+    // Filtrar items según el rol del usuario
+    return allItems.filter(item => item.roles.includes(user?.role));
+  };
+
+  const navItems = getNavItems();
 
   return (
     <aside className="w-20 lg:w-64 bg-white dark:bg-surface-dark border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between shrink-0 transition-all duration-300">
@@ -58,14 +74,14 @@ const Sidebar = () => {
         {/* User Info */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs">
-              JD
+            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs">
+              {user?.name?.split(' ').map(n => n[0]).join('').substring(0, 2) || 'U'}
             </div>
             <div className="hidden lg:flex flex-col">
               <span className="text-sm font-semibold text-slate-800 dark:text-white">
-                Jane Doe
+                {user?.name || 'Usuario'}
               </span>
-              <span className="text-xs text-slate-500">Agente Legal</span>
+              <span className="text-xs text-slate-500 capitalize">{user?.role || 'Sin rol'}</span>
             </div>
           </div>
         </div>

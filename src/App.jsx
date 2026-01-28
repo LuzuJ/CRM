@@ -1,4 +1,7 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import MailroomPage from './pages/MailroomPage';
 import OCRExtractionPage from './pages/OCRExtractionPage';
@@ -10,18 +13,96 @@ import CasesPage from './pages/CasesPage';
 import SettingsPage from './pages/SettingsPage';
 
 function App() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <Routes>
-      <Route path="/" element={<DashboardPage />} />
-      <Route path="/mailroom" element={<MailroomPage />} />
-      <Route path="/ocr-extraction" element={<OCRExtractionPage />} />
-      <Route path="/compliance" element={<CompliancePage />} />
-      <Route path="/appointments" element={<AppointmentsPage />} />
-      <Route path="/deadlines" element={<DeadlinesPage />} />
-      <Route path="/cases/:caseId" element={<CaseDetailPage />} />
-      <Route path="/cases" element={<CasesPage />} />
-      <Route path="/settings" element={<SettingsPage />} />
-      <Route path="*" element={<DashboardPage />} />
+      {/* Ruta de Login */}
+      <Route 
+        path="/login" 
+        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} 
+      />
+
+      {/* Rutas Protegidas - Todas requieren autenticación */}
+      <Route 
+        path="/" 
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* Rutas solo para Agente */}
+      <Route 
+        path="/mailroom" 
+        element={
+          <ProtectedRoute allowedRoles={['agente']}>
+            <MailroomPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/ocr-extraction" 
+        element={
+          <ProtectedRoute allowedRoles={['agente']}>
+            <OCRExtractionPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/compliance" 
+        element={
+          <ProtectedRoute allowedRoles={['agente']}>
+            <CompliancePage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/appointments" 
+        element={
+          <ProtectedRoute>
+            <AppointmentsPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/deadlines" 
+        element={
+          <ProtectedRoute allowedRoles={['agente']}>
+            <DeadlinesPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* Rutas accesibles para todos los roles autenticados */}
+      <Route 
+        path="/cases" 
+        element={
+          <ProtectedRoute>
+            <CasesPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/cases/:caseId" 
+        element={
+          <ProtectedRoute>
+            <CaseDetailPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/settings" 
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* Ruta por defecto */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

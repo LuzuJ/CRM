@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, Navigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
 import { useDemoData } from '../contexts/DemoContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const CaseDetailPage = () => {
   const { caseId } = useParams();
   const { cases, documents, appointments } = useDemoData();
+  const { user, canAccessCase } = useAuth();
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState('documents');
 
@@ -18,6 +20,31 @@ const CaseDetailPage = () => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
+
+  // Validar acceso del usuario al caso
+  if (!canAccessCase(caseId)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center max-w-md p-8">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-red-600 text-[48px]">
+              block
+            </span>
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Acceso Denegado</h2>
+          <p className="text-slate-600 mb-6">
+            No tienes permisos para ver este caso.
+          </p>
+          <button
+            onClick={() => window.history.back()}
+            className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+          >
+            Volver
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!caseData) {
     return <Layout title="Cargando..."><div>Cargando detalles del caso...</div></Layout>;

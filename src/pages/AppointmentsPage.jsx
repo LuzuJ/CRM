@@ -2,14 +2,21 @@ import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
 import { useDemoData } from '../contexts/DemoContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const AppointmentsPage = () => {
   const { appointments, cases, agents, addAppointment, cancelAppointment } = useDemoData();
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedAgent, setSelectedAgent] = useState('');
   const [selectedCase, setSelectedCase] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [toast, setToast] = useState(null);
+  
+  // Filtrar citas según el rol
+  const userAppointments = user?.role === 'cliente'
+    ? appointments.filter(a => a.caseId === user.caseId)
+    : appointments;
   const [availability, setAvailability] = useState([
     { agentId: 'AGENTE_01', time: '10:00', status: 'OCUPADO', appointmentId: 'CITA_100' },
     { agentId: 'AGENTE_01', time: '11:00', status: 'LIBRE', appointmentId: null },
@@ -109,12 +116,16 @@ const AppointmentsPage = () => {
   };
 
   return (
-    <Layout title="Intelligent Appointment Scheduler" subtitle="Gestión de citas y agendamiento">
+    <Layout 
+      title={user?.role === 'cliente' ? 'Mis Citas' : 'Intelligent Appointment Scheduler'} 
+      subtitle={user?.role === 'cliente' ? 'Revisa tus citas programadas' : 'Gestión de citas y agendamiento'}
+    >
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Formulario de Agendamiento */}
-        <div className="bg-white rounded-xl shadow-card p-6">
+        {/* Formulario de Agendamiento - Solo para agentes */}
+        {user?.role === 'agente' && (
+          <div className="bg-white rounded-xl shadow-card p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4">Nueva Cita</h2>
             
             <div className="space-y-4">
@@ -194,18 +205,20 @@ const AppointmentsPage = () => {
               </button>
             </div>
           </div>
+        )}
 
           {/* Lista de Citas */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-card p-6">
+          <div className={user?.role === 'cliente' ? 'lg:col-span-3' : 'lg:col-span-2'}>
+            <div className="bg-white rounded-xl shadow-card p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4">
-              Citas Programadas
+              {user?.role === 'cliente' ? 'Mis Citas Programadas' : 'Citas Programadas'}
               <span className="ml-2 text-sm font-normal text-slate-500">
-                ({appointments.filter(a => a.status === 'CONFIRMADA').length})
+                ({userAppointments.filter(a => a.status === 'CONFIRMADA').length})
               </span>
             </h2>
 
             <div className="space-y-3">
-              {appointments.length === 0 ? (
+              {userAppointments.length === 0 ? (
                 <div className="text-center py-12">
                   <span className="material-symbols-outlined text-slate-300 text-[64px]">
                     event_available
@@ -213,7 +226,7 @@ const AppointmentsPage = () => {
                   <p className="text-slate-500 mt-3">No hay citas programadas</p>
                 </div>
               ) : (
-                appointments.map(apt => {
+                userAppointments.map(apt => {
                   const caseData = cases.find(c => c.id === apt.caseId);
                   const agentData = agents.find(a => a.id === apt.agentId);
 
@@ -253,27 +266,30 @@ const AppointmentsPage = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          {apt.status === 'CONFIRMADA' && (
-                            <>
-                              <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                                <span className="material-symbols-outlined text-[20px]">edit</span>
-                              </button>
-                              <button
-                                onClick={() => handleCancelAppointment(apt.id)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                              >
-                                <span className="material-symbols-outlined text-[20px]">cancel</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        {user?.role === 'agente' && (
+                          <div className="flex gap-2">
+                            {apt.status === 'CONFIRMADA' && (
+                              <>
+                                <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                                  <span className="material-symbols-outlined text-[20px]">edit</span>
+                                </button>
+                                <button
+                                  onClick={() => handleCancelAppointment(apt.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                >
+                                  <span className="material-symbols-outlined text-[20px]">cancel</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
                 })
               )}
             </div>
+          </div>
           </div>
         </div>
     </Layout>
