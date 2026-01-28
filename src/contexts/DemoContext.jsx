@@ -19,9 +19,21 @@ export const DemoProvider = ({ children }) => {
 
   // --- 2. DOCUMENTOS (MAILROOM + OCR) ---
   const [documents, setDocuments] = useState([
-    { id: 1, name: 'pasaporte_maria_gonzalez.pdf', category: 'Identificación', tipo_documento: 'PASAPORTE', status: 'RECIBIDO', size: '3.1 MB', date: '2025-12-31', caseId: 1, type: 'Pasaporte' },
+    // Documentos del Cliente 1 (María Fernanda - Trámite 1)
+    { id: 1, name: 'pasaporte_maria_gonzalez.pdf', category: 'Identificación', tipo_documento: 'PASAPORTE', status: 'VALIDADO', size: '3.1 MB', date: '2025-12-31', caseId: 1, type: 'Pasaporte' },
     { id: 2, name: 'contrato_maria_gonzalez.pdf', category: 'Laboral', tipo_documento: 'CONTRATO_LABORAL', status: 'VALIDADO', size: '1.8 MB', date: '2026-01-03', caseId: 1, type: 'Contrato' },
-    { id: 3, name: 'cedula_juan_rodriguez.pdf', category: 'Identificación', tipo_documento: 'CEDULA', status: 'RECIBIDO', size: '2.3 MB', date: '2026-01-14', caseId: 2, type: 'Cédula' },
+    { id: 7, name: 'certificado_antecedentes_maria.pdf', category: 'Legal', tipo_documento: 'ANTECEDENTES', status: 'RECIBIDO', size: '1.2 MB', date: '2026-01-15', caseId: 1, type: 'Certificado' },
+    { id: 8, name: 'carta_intencion_empresa.pdf', category: 'Laboral', tipo_documento: 'CARTA', status: 'VALIDADO', size: '850 KB', date: '2026-01-10', caseId: 1, type: 'Carta' },
+    
+    // Documentos del Cliente 2 (Juan Carlos - Trámite 2)
+    { id: 3, name: 'cedula_juan_rodriguez.pdf', category: 'Identificación', tipo_documento: 'CEDULA', status: 'VALIDADO', size: '2.3 MB', date: '2026-01-14', caseId: 2, type: 'Cédula' },
+    { id: 9, name: 'certificado_matrimonio_juan.pdf', category: 'Personal', tipo_documento: 'CERTIFICADO_MATRIMONIO', status: 'RECIBIDO', size: '1.9 MB', date: '2026-01-16', caseId: 2, type: 'Certificado' },
+    { id: 10, name: 'pasaporte_conyuge.pdf', category: 'Identificación', tipo_documento: 'PASAPORTE', status: 'EN_REVISION', size: '2.7 MB', date: '2026-01-18', caseId: 2, type: 'Pasaporte' },
+    
+    // Documentos de otros casos
+    { id: 11, name: 'acta_nacimiento_ana.pdf', category: 'Personal', tipo_documento: 'ACTA_NACIMIENTO', status: 'VALIDADO', size: '1.1 MB', date: '2025-12-20', caseId: 3, type: 'Acta' },
+    
+    // Documentos pendientes de vinculación
     { id: 4, name: 'pasaporte_nuevo_1.pdf', category: 'Identificación', tipo_documento: 'PASAPORTE', status: 'PENDIENTE', size: '2.8 MB', date: '2026-01-26', caseId: null, type: 'Pasaporte' },
     { id: 5, name: 'cedula_nueva_2.pdf', category: 'Identificación', tipo_documento: 'CEDULA', status: 'PENDIENTE', size: '2.1 MB', date: '2026-01-27', caseId: null, type: 'Cédula' },
     { id: 6, name: 'certificado_matrimonio_3.pdf', category: 'Personal', tipo_documento: 'CERTIFICADO_MATRIMONIO', status: 'PENDIENTE', size: '1.5 MB', date: '2026-01-28', caseId: null, type: 'Certificado' },
@@ -29,9 +41,17 @@ export const DemoProvider = ({ children }) => {
 
   // --- 3. CITAS (APPOINTMENTS) ---
   const [appointments, setAppointments] = useState([
-    { id: 1, caseId: 1, agentId: 1, date: '2026-01-31', time: '10:00', status: 'PROGRAMADA', tipo: 'REVISION_DOCUMENTOS' },
-    { id: 2, caseId: 2, agentId: 2, date: '2026-02-04', time: '14:00', status: 'PROGRAMADA', tipo: 'ENTREVISTA' },
-    { id: 3, caseId: 3, agentId: 1, date: '2026-01-23', time: '09:00', status: 'COMPLETADA', tipo: 'CONSULTA' },
+    // Citas del Cliente 1 (María Fernanda - Trámite 1)
+    { id: 1, caseId: 1, agentId: 1, date: '2026-01-31', time: '10:00', status: 'PROGRAMADA', tipo: 'REVISION_DOCUMENTOS', agentName: 'Dr. Roberto Méndez', notes: 'Revisión de contrato laboral y documentación migratoria' },
+    { id: 4, caseId: 1, agentId: 1, date: '2026-01-20', time: '15:00', status: 'COMPLETADA', tipo: 'CONSULTA', agentName: 'Dr. Roberto Méndez', notes: 'Consulta inicial sobre visa de trabajo' },
+    { id: 5, caseId: 1, agentId: 1, date: '2026-02-10', time: '11:00', status: 'PROGRAMADA', tipo: 'SEGUIMIENTO', agentName: 'Dr. Roberto Méndez', notes: 'Seguimiento del proceso de visa' },
+    
+    // Citas del Cliente 2 (Juan Carlos - Trámite 2)
+    { id: 2, caseId: 2, agentId: 2, date: '2026-02-04', time: '14:00', status: 'PROGRAMADA', tipo: 'ENTREVISTA', agentName: 'Dra. Laura Castillo', notes: 'Entrevista de residencia por matrimonio' },
+    { id: 6, caseId: 2, agentId: 2, date: '2026-01-18', time: '09:30', status: 'COMPLETADA', tipo: 'CONSULTA', agentName: 'Dra. Laura Castillo', notes: 'Evaluación de documentos matrimoniales' },
+    
+    // Otras citas
+    { id: 3, caseId: 3, agentId: 1, date: '2026-01-23', time: '09:00', status: 'COMPLETADA', tipo: 'CONSULTA', agentName: 'Dr. Roberto Méndez', notes: 'Consulta sobre reunificación familiar' },
   ]);
 
   // --- 4. PERFILES LEGALES (COMPLIANCE) ---
@@ -54,6 +74,23 @@ export const DemoProvider = ({ children }) => {
     { id: 1, name: 'Dr. Roberto Méndez', specialty: 'Visas de Trabajo', availability: ['2026-01-31', '2026-02-01', '2026-02-03'] },
     { id: 2, name: 'Dra. Laura Castillo', specialty: 'Residencia Permanente', availability: ['2026-01-31', '2026-02-02', '2026-02-04'] },
     { id: 3, name: 'Lic. Pedro Ramírez', specialty: 'Reunificación Familiar', availability: [] },
+  ]);
+
+  // --- 7. ACTIVIDAD RECIENTE (ACTIVITY LOG) ---
+  const [activities] = useState([
+    // Cliente 1 (María Fernanda - Trámite 1)
+    { id: 1, caseId: 1, action: 'Documento validado: Contrato laboral', date: '2026-01-28', time: '09:15', type: 'document' },
+    { id: 2, caseId: 1, action: 'Certificado de antecedentes recibido', date: '2026-01-27', time: '14:30', type: 'document' },
+    { id: 3, caseId: 1, action: 'Cita confirmada con Dr. Roberto Méndez', date: '2026-01-25', time: '11:00', type: 'appointment' },
+    { id: 4, caseId: 1, action: 'Pasaporte verificado y aprobado', date: '2026-01-22', time: '16:45', type: 'validation' },
+    { id: 5, caseId: 1, action: 'Consulta inicial completada', date: '2026-01-20', time: '15:00', type: 'appointment' },
+    
+    // Cliente 2 (Juan Carlos - Trámite 2)
+    { id: 6, caseId: 2, action: 'Pasaporte de cónyuge en revisión', date: '2026-01-28', time: '10:30', type: 'document' },
+    { id: 7, caseId: 2, action: 'Certificado de matrimonio recibido', date: '2026-01-26', time: '13:15', type: 'document' },
+    { id: 8, caseId: 2, action: 'Entrevista programada para 04 de Febrero', date: '2026-01-24', time: '09:00', type: 'appointment' },
+    { id: 9, caseId: 2, action: 'Cédula validada exitosamente', date: '2026-01-20', time: '11:30', type: 'validation' },
+    { id: 10, caseId: 2, action: 'Evaluación de documentos completada', date: '2026-01-18', time: '09:30', type: 'appointment' },
   ]);
 
   // --- ACCIONES (ACTIONS) ---
@@ -110,6 +147,7 @@ export const DemoProvider = ({ children }) => {
       profiles,
       deadlines,
       agents,
+      activities,
       linkDocument,
       updateOCRStatus,
       updateProfileStatus,

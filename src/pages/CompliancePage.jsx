@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useDemoData } from '../contexts/DemoContext';
 
 const CompliancePage = () => {
@@ -29,13 +30,14 @@ const CompliancePage = () => {
 
       // Simulación basada en el perfil
       switch (profile.id) {
+        case 'PERFIL_1':
         case 'PERFIL_OK':
           result = {
             status: 'VALIDADO_LEGALMENTE',
             civilRegistry: {
               active: true,
               civilStatus: 'CASADO',
-              officialName: 'JUAN PEREZ',
+              officialName: profile.name || 'MARIA FERNANDA GONZALEZ PEREZ',
               match: true,
             },
             migrationPolice: {
@@ -47,13 +49,14 @@ const CompliancePage = () => {
           showToast('Perfil validado exitosamente', 'success');
           break;
 
+        case 'PERFIL_2':
         case 'PERFIL_IMP':
           result = {
             status: 'BLOQUEO_LEGAL',
             civilRegistry: {
               active: true,
-              civilStatus: 'SOLTERO',
-              officialName: 'LUIS DEUDOR',
+              civilStatus: 'CASADO',
+              officialName: profile.name || 'JUAN CARLOS RODRIGUEZ LOPEZ',
               match: true,
             },
             migrationPolice: {
@@ -65,23 +68,23 @@ const CompliancePage = () => {
           showToast('Cliente con restricción migratoria vigente', 'error');
           break;
 
+        case 'PERFIL_3':
         case 'PERFIL_RIP':
           result = {
-            status: 'FRAUDE',
+            status: 'VALIDADO_LEGALMENTE',
             civilRegistry: {
-              active: false,
-              civilStatus: 'VIUDO',
-              officialName: 'MARIA DIFUNTA',
-              reason: 'Fallecido',
-              match: false,
+              active: true,
+              civilStatus: 'SOLTERO',
+              officialName: profile.name || 'ANA PATRICIA MARTINEZ SILVA',
+              match: true,
             },
             migrationPolice: {
               impediment: false,
               reason: 'N/A',
             },
-            message: 'Estado de ciudadanía inactivo',
+            message: 'Perfil validado exitosamente',
           };
-          showToast('Estado de ciudadanía inactivo detectado', 'error');
+          showToast('Perfil validado exitosamente', 'success');
           break;
 
         case 'PERFIL_ERR':
@@ -104,6 +107,22 @@ const CompliancePage = () => {
           break;
 
         default:
+          // Para cualquier perfil no reconocido, validar exitosamente
+          result = {
+            status: 'VALIDADO_LEGALMENTE',
+            civilRegistry: {
+              active: true,
+              civilStatus: 'SOLTERO',
+              officialName: profile.name,
+              match: true,
+            },
+            migrationPolice: {
+              impediment: false,
+              reason: 'N/A',
+            },
+            message: 'Perfil validado exitosamente',
+          };
+          showToast('Perfil validado exitosamente', 'success');
           break;
       }
 

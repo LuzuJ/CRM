@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { dashboardService } from '../services';
 
 const DashboardPage = () => {
-  const { cases: fallbackCases, documents: fallbackDocs, appointments: fallbackAppts, profiles: fallbackProfiles } = useDemoData();
+  const { cases: fallbackCases, documents: fallbackDocs, appointments: fallbackAppts, profiles: fallbackProfiles, activities: fallbackActivities } = useDemoData();
   const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -14,6 +14,7 @@ const DashboardPage = () => {
   const [documents, setDocuments] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [activities, setActivities] = useState([]);
 
   // Cargar datos del dashboard desde el backend
   useEffect(() => {
@@ -31,6 +32,7 @@ const DashboardPage = () => {
       setDocuments(data.documentos || fallbackDocs);
       setAppointments(data.citas || fallbackAppts);
       setProfiles(fallbackProfiles); // Usar fallback para perfiles por ahora
+      setActivities(fallbackActivities || []); // Usar fallback para actividades
     } catch (error) {
       console.error('Error al cargar dashboard:', error);
       // Si falla, usar datos locales del contexto
@@ -38,6 +40,7 @@ const DashboardPage = () => {
       setDocuments(fallbackDocs);
       setAppointments(fallbackAppts);
       setProfiles(fallbackProfiles);
+      setActivities(fallbackActivities || []);
     } finally {
       setLoading(false);
     }
@@ -89,11 +92,14 @@ const DashboardPage = () => {
   // Actividad reciente filtrada por rol
   const getRecentActivity = () => {
     if (user?.role === 'cliente') {
-      const myCase = userCases[0];
-      return [
-        { action: 'Documento vinculado', case: myCase?.id || 'N/A', time: '1 día' },
-        { action: 'Cita agendada', case: myCase?.id || 'N/A', time: '3 días' },
-        { action: 'Estado actualizado', case: myCase?.id || 'N/A', time: '1 semana' },
+      // Filtrar actividades del cliente
+      const myActivities = activities.filter(a => a.caseId === user.caseId).slice(0, 5);
+      return myActivities.length > 0 ? myActivities.map(a => ({
+        action: a.action,
+        case: `Trámite ${a.caseId}`,
+        time: a.date
+      })) : [
+        { action: 'No hay actividad reciente', case: 'N/A', time: '-' }
       ];
     }
     

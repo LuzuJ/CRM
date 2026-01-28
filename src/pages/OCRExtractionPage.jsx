@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useDemoData } from '../contexts/DemoContext';
 import { ocrService } from '../services';
 

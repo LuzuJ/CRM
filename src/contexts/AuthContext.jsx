@@ -37,18 +37,18 @@ export const AuthProvider = ({ children }) => {
       username: 'cliente1',
       password: 'cliente123',
       role: 'cliente',
-      name: 'Juan Pérez',
-      email: 'juan.perez@email.com',
-      caseId: 'TR-A01'
+      name: 'María Fernanda González Pérez',
+      email: 'maria.gonzalez@email.com',
+      caseId: 1
     },
     {
       id: 'USER_004',
       username: 'cliente2',
       password: 'cliente123',
       role: 'cliente',
-      name: 'María González',
-      email: 'maria.gonzalez@email.com',
-      caseId: 'TR-B02'
+      name: 'Juan Carlos Rodríguez López',
+      email: 'juan.rodriguez@email.com',
+      caseId: 2
     }
   ];
 
