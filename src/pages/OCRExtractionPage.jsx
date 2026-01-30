@@ -2,365 +2,331 @@ import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ocrService, documentService } from '../services';
+import { caseService, documentService, perfilesService } from '../services';
 
 const OCRExtractionPage = () => {
+  const [tramites, setTramites] = useState([]);
+  const [selectedTramite, setSelectedTramite] = useState('');
   const [documents, setDocuments] = useState([]);
   const [selectedDoc, setSelectedDoc] = useState(null);
-  const [extractedData, setExtractedData] = useState({});
-  const [manualEdit, setManualEdit] = useState(false);
+  const [extractedData, setExtractedData] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [creatingProfile, setCreatingProfile] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Cargar documentos desde el backend
   useEffect(() => {
-    loadDocuments();
+    loadTramites();
   }, []);
 
-  const loadDocuments = async () => {
+  useEffect(() => {
+    if (selectedTramite) {
+      loadDocumentsByTramite();
+    }
+  }, [selectedTramite]);
+
+  const loadTramites = async () => {
     try {
-      const docs = await documentService.listDocuments();
-      setDocuments(docs || []);
+      const data = await caseService.listCases();
+      setTramites(data || []);
     } catch (error) {
-      console.error('Error cargando documentos:', error);
-      showToast('Error al cargar documentos', 'error');
+      console.error('Error cargando trámites:', error);
+      showToast('Error al cargar trámites', 'error');
     }
   };
 
-  // Filtrar solo documentos OCR (según Escenario 1.2)
-  const ocrDocuments = documents.filter(doc => 
-    ['DOC_OCR_1', 'DOC_OCR_2', 'DOC_OCR_3', 'DOC_OCR_ERR'].includes(doc.id) ||
-    doc.estado === 'PENDIENTE' ||
-    doc.tipo?.includes('Cédula') || doc.tipo?.includes('Pasaporte') || doc.tipo?.includes('Visa')
-  );
+  const loadDocumentsByTramite = async () => {
+    try {
+      const tramite = await caseService.getCase(selectedTramite);
+      setDocuments(tramite.documentos || []);
+      setSelectedDoc(null);
+      setExtractedData(null);
+    } catch (error) {
+      console.error('Error cargando documentos:', error);
+      showToast('Error al cargar documentos del trámite', 'error');
+    }
+  };
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleProcessDocument = async (doc) => {
-    setSelectedDoc(doc);
+  const handleExtractOCR = async () => {
+    if (!selectedDoc) return;
+
     setProcessing(true);
-    setManualEdit(false);
+    setExtractedData(null);
 
     try {
-      // Llamar al servicio OCR real del backend
-      const result = await ocrService.processExistingDocument(doc.id);
+      // Crear un archivo de prueba si el backend lo requiere
+      // El backend debería poder procesar el documento que ya tiene
+      // Si requiere el archivo, necesitas implementar un endpoint GET para obtenerlo
       
-      if (result.status === 'ok' && result.datos) {
-        const confianza = result.confianza || 0.95;
-        
-        // Escenario 1.2: Detección de baja confianza (< 0.60)
-        if (confianza < 0.60) {
-          const data = {
-            status: 'REVISION_MANUAL',
-            confidence: confianza,
-            fields: result.datos,
-          };
-          setExtractedData(data);
-          updateOCRStatus(doc.id, 'REVISION_MANUAL');
-          showToast(`Confianza baja (${(confianza * 100).toFixed(0)}%). Campos marcados para revisión manual`, 'warning');
-          setManualEdit(true);
-        } else {
-          // Confianza alta - Completado automáticamente
-          const data = {
-            status: 'COMPLETADO',
-            confidence: confianza,
-            fields: result.datos,
-          };
-          setExtractedData(data);
-          updateOCRStatus(doc.id, 'COMPLETADO');
-          showToast(`Extracción completada (confianza: ${(confianza * 100).toFixed(0)}%)`, 'success');
-          loadDocuments(); // Recargar documentos
-        }
+      // Por ahora, intentamos sin archivo (el backend debería usar el path almacenado)
+      const result = await documentService.processOCR(selectedDoc.id);
+      
+      if (result && result.datos) {
+        setExtractedData(result.datos);
+        showToast('Información extraída exitosamente', 'success');
       } else {
-        // Error de lectura (status !== 'ok')
-        throw new Error('UnreadableFileException');
+        throw new Error('No se pudo extraer información');
       }
     } catch (error) {
-      console.error('Error al procesar documento:', error);
+      console.error('Error en extracción OCR:', error);
       
-      // Escenario 1.2: Habilitación de ingreso manual ante fallo en lectura
-      showToast('No se pudo extraer información automáticamente', 'error');
-      setManualEdit(true);
+      // Mostrar más detalles del error
+      const errorMsg = error.response?.data?.detail || error.message || 'Error al extraer información del documento';
+      showToast(`Error OCR: ${errorMsg}`, 'error');
       
-      // Inicializar campos según tipo de documento
-      const fieldsTemplate = getDocumentFieldsTemplate(doc.tipo_documento);
-      
-      setExtractedData({
-        status: 'ERROR',
-        confidence: 0,
-        fields: fieldsTemplate,
-        error: 'UnreadableFileException',
-      });
-      updateOCRStatus(doc.id, 'ERROR');
+      // Si el error es 422, probablemente el backend espera un archivo
+      if (error.response?.status === 422) {
+        showToast('El documento requiere un archivo. Verifica que el documento tenga un archivo subido.', 'warning');
+      }
     } finally {
       setProcessing(false);
     }
   };
 
-  // Plantilla de campos según tipo de documento (Escenario 1.2)
-  const getDocumentFieldsTemplate = (tipoDoc) => {
-    const templates = {
-      'Cédula Ecuador': {
-        'Número de Cédula': { value: '', manual: true, pattern: '^[0-9]{10}$', description: '10 dígitos numéricos' },
-        'Nombres': { value: '', manual: true },
-        'Apellidos': { value: '', manual: true },
-        'Fecha de Nacimiento': { value: '', manual: true },
-      },
-      'Pasaporte': {
-        'Número de Pasaporte': { value: '', manual: true, pattern: '^[A-Z0-9]{6,9}$' },
-        'Nombres': { value: '', manual: true },
-        'Apellidos': { value: '', manual: true },
-        'Nacionalidad': { value: '', manual: true },
-        'Fecha de Nacimiento': { value: '', manual: true },
-        'Fecha de Emisión': { value: '', manual: true },
-        'Fecha de Vencimiento': { value: '', manual: true },
-      },
-      'Visa Americana': {
-        'Número de Control': { value: '', manual: true, pattern: '^[0-9]{12,14}$', description: 'Formato Visa USA' },
-        'Tipo de Visa': { value: '', manual: true },
-        'Fecha de Emisión': { value: '', manual: true },
-        'Fecha de Vencimiento': { value: '', manual: true },
-      },
-    };
-    
-    return templates[tipoDoc] || {
-      'Campo 1': { value: '', manual: true },
-      'Campo 2': { value: '', manual: true },
-    };
-  };
+  const handleCreateProfile = async () => {
+    if (!extractedData) {
+      showToast('No hay datos extraídos para crear el perfil', 'warning');
+      return;
+    }
 
-  const handleFieldChange = (fieldName, value) => {
-    setExtractedData(prev => ({
-      ...prev,
-      fields: {
-        ...prev.fields,
-        [fieldName]: { ...prev.fields[fieldName], value, manual: true },
-      },
-    }));
-  };
+    setCreatingProfile(true);
 
-  const handleSaveManualData = async () => {
-    // Validar campos según regex pattern (Escenario 1.2)
-    let hasErrors = false;
-    const validatedFields = { ...extractedData.fields };
-    
-    Object.entries(validatedFields).forEach(([fieldName, fieldData]) => {
-      if (fieldData.pattern && fieldData.value) {
-        const regex = new RegExp(fieldData.pattern);
-        if (!regex.test(fieldData.value)) {
-          showToast(`El campo "${fieldName}" no cumple el formato esperado`, 'error');
-          hasErrors = true;
-        }
-      }
-    });
-    
-    if (hasErrors) return;
-    
     try {
-      // Actualizar estado del documento
-      updateOCRStatus(selectedDoc.id, 'COMPLETADO');
-      showToast('Datos guardados correctamente', 'success');
-      setManualEdit(false);
-      setExtractedData(prev => ({ ...prev, status: 'COMPLETADO' }));
+      // Obtener datos del trámite para el cliente_id
+      const tramite = await caseService.getCase(selectedTramite);
+      
+      console.log('Datos extraídos:', extractedData);
+      console.log('Trámite:', tramite);
+      
+      // Crear perfil con datos OCR
+      const perfilData = {
+        id: `PERFIL-${selectedDoc.id}`,
+        cliente_id: tramite.solicitante_id,
+        nombres_ocr: extractedData.nombres || extractedData.nombre || '',
+        cedula_ocr: extractedData.cedula || extractedData.numero_cedula || '',
+        fecha_nacimiento_ocr: extractedData.fecha_nacimiento || null
+      };
+
+      console.log('Datos del perfil a crear:', perfilData);
+
+      const perfil = await perfilesService.crearPerfil(perfilData);
+      showToast('Perfil creado exitosamente', 'success');
+
+      // Ejecutar validación legal automáticamente
+      const validacion = await perfilesService.validarPerfil(perfil.id);
+      
+      // Mostrar resultado de validación
+      const alertColor = getAlertColor(validacion.estado_validacion);
+      showToast(
+        `Validación completada: ${validacion.estado_validacion}`,
+        alertColor === 'green' ? 'success' : alertColor === 'red' ? 'error' : 'warning'
+      );
+
+      // Limpiar selección
+      setSelectedDoc(null);
+      setExtractedData(null);
+      loadDocumentsByTramite();
+
     } catch (error) {
-      showToast('Error al guardar los datos', 'error');
+      console.error('Error creando perfil:', error);
+      console.error('Detalles del error:', error.response?.data);
+      
+      // Mostrar mensaje de error más específico
+      const errorMsg = error.response?.data?.detail || error.message || 'Error desconocido';
+      showToast(`Error al crear perfil: ${errorMsg}`, 'error');
+    } finally {
+      setCreatingProfile(false);
     }
   };
 
-  const getConfidenceColor = (confidence) => {
-    if (confidence >= 0.8) return 'text-green-600';
-    if (confidence >= 0.6) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getConfidenceBadge = (confidence) => {
-    if (confidence >= 0.8) return 'bg-green-100 text-green-700';
-    if (confidence >= 0.6) return 'bg-yellow-100 text-yellow-700';
-    return 'bg-red-100 text-red-700';
+  const getAlertColor = (estado) => {
+    switch (estado) {
+      case 'VALIDADO_LEGALMENTE':
+        return 'green';
+      case 'BLOQUEO_LEGAL':
+        return 'red';
+      case 'FRAUDE':
+        return 'black';
+      case 'PENDIENTE':
+        return 'yellow';
+      default:
+        return 'orange';
+    }
   };
 
   return (
-    <Layout title="OCR Intelligent Extraction Workspace" subtitle="Extracción y validación de datos">
+    <Layout title="Validación OCR" subtitle="Extracción de información y creación de perfiles">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-        {/* Lista de Documentos */}
-        <div className="bg-white rounded-xl shadow-card p-6 overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-slate-900">
-                Cola de Verificación
-                <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-bold bg-primary text-white">
-                  {ocrDocuments.filter(d => d.estado_ocr === 'PENDIENTE' || d.status === 'PENDIENTE').length}
-                </span>
-              </h2>
-            </div>
-
-            <div className="flex-1 overflow-auto space-y-3">
-              {ocrDocuments.map(doc => (
-                <div
-                  key={doc.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    selectedDoc?.id === doc.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-slate-200 hover:border-primary/50 hover:bg-slate-50'
-                  }`}
-                  onClick={() => !processing && handleProcessDocument(doc)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-slate-600">description</span>
-                      <span className="font-medium text-slate-900 text-sm">{doc.id}</span>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      doc.estado_ocr === 'PENDIENTE' || doc.status === 'PENDIENTE'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : doc.estado_ocr === 'COMPLETADO'
-                        ? 'bg-green-100 text-green-700'
-                        : doc.estado_ocr === 'REVISION_MANUAL'
-                        ? 'bg-orange-100 text-orange-700'
-                        : doc.estado_ocr === 'ERROR'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-slate-100 text-slate-700'
-                    }`}>
-                      {doc.estado_ocr || doc.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-700">{doc.tipo_documento || doc.type}</p>
-                  <p className="text-xs text-slate-500 mt-1">{doc.name} • {doc.caseId}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Área de Procesamiento */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-card overflow-hidden flex flex-col">
-            {processing ? (
-              <div className="flex-1 flex items-center justify-center">
-                <LoadingSpinner size="lg" message="Procesando documento con OCR..." />
-              </div>
-            ) : selectedDoc && extractedData.fields ? (
-              <div className="flex flex-col h-full">
-                {/* Header */}
-                <div className="p-6 border-b border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">{selectedDoc.name}</h2>
-                      <p className="text-sm text-slate-500">{selectedDoc.tipo_documento || selectedDoc.type} • {selectedDoc.caseId}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className={`px-3 py-1 rounded-lg ${getConfidenceBadge(extractedData.confidence)}`}>
-                        <span className="text-xs font-bold">
-                          Confianza: {(extractedData.confidence * 100).toFixed(0)}%
-                        </span>
-                      </div>
-                      {(extractedData.status === 'REVISION_MANUAL' || extractedData.status === 'ERROR') && (
-                        <button
-                          onClick={() => setManualEdit(!manualEdit)}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">edit</span>
-                          {manualEdit ? 'Ver Modo' : 'Editar Manual'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {extractedData.status === 'REVISION_MANUAL' && (
-                    <div className="mt-3 p-3 bg-warning-bg border-l-4 border-warning-border rounded">
-                      <p className="text-sm text-slate-700">
-                        ⚠️ Algunos campos requieren revisión manual debido a baja confianza en la lectura
-                      </p>
-                    </div>
-                  )}
-
-                  {extractedData.status === 'ERROR' && (
-                    <div className="mt-3 p-3 bg-error-bg border-l-4 border-error-border rounded">
-                      <p className="text-sm text-slate-700">
-                        ❌ No se pudo extraer información automáticamente. Ingrese los datos manualmente.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Campos Extraídos */}
-                <div className="flex-1 overflow-auto p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {Object.entries(extractedData.fields).map(([fieldName, fieldData]) => (
-                      <div key={fieldName} className="flex flex-col">
-                        <label className="text-sm font-medium text-slate-700 mb-1.5 flex items-center justify-between">
-                          <span>{fieldName}</span>
-                          {!manualEdit && fieldData.confidence !== undefined && (
-                            <span className={`text-xs font-bold ${getConfidenceColor(fieldData.confidence)}`}>
-                              {(fieldData.confidence * 100).toFixed(0)}%
-                            </span>
-                          )}
-                        </label>
-                        <input
-                          type="text"
-                          value={fieldData.value}
-                          onChange={(e) => handleFieldChange(fieldName, e.target.value)}
-                          disabled={!manualEdit && extractedData.status !== 'ERROR'}
-                          className={`px-3 py-2 border rounded-lg ${
-                            fieldData.confidence < 0.6 && !manualEdit
-                              ? 'border-red-300 bg-red-50'
-                              : 'border-slate-300'
-                          } ${
-                            manualEdit || extractedData.status === 'ERROR'
-                              ? 'bg-white'
-                              : 'bg-slate-50'
-                          } focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed`}
-                        />
-                        {fieldData.description && (
-                          <span className="text-xs text-slate-500 mt-1">
-                            ℹ️ {fieldData.description}
-                          </span>
-                        )}
-                        {fieldData.manual && (
-                          <span className="text-xs text-blue-600 mt-1">✏️ Editado manualmente</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                {(manualEdit || extractedData.status === 'ERROR') && (
-                  <div className="p-6 border-t border-slate-100 flex gap-3">
-                    <button
-                      onClick={handleSaveManualData}
-                      className="flex-1 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark"
-                    >
-                      Guardar Datos
-                    </button>
-                    {manualEdit && (
-                      <button
-                        onClick={() => setManualEdit(false)}
-                        className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50"
-                      >
-                        Cancelar
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-                <span className="material-symbols-outlined text-slate-300 text-[80px] mb-4">
-                  scanner
-                </span>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                  Extracción Inteligente OCR
-                </h3>
-                <p className="text-slate-500 text-sm max-w-md">
-                  Seleccione un documento de la cola para iniciar el proceso de extracción automática de datos
-                </p>
-              </div>
-            )}
-          </div>
+      <div className="space-y-6">
+        {/* Selector de Trámite */}
+        <div className="bg-white rounded-xl shadow-card p-6">
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Seleccionar Trámite
+          </label>
+          <select
+            value={selectedTramite}
+            onChange={(e) => setSelectedTramite(e.target.value)}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          >
+            <option value="">-- Seleccione un trámite --</option>
+            {tramites.map(tramite => (
+              <option key={tramite.id} value={tramite.id}>
+                {tramite.tipo} - {tramite.id} ({tramite.estado})
+              </option>
+            ))}
+          </select>
         </div>
+
+        {selectedTramite && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Lista de Documentos */}
+            <div className="bg-white rounded-xl shadow-card p-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                Documentos del Trámite
+              </h3>
+              
+              {documents.length === 0 ? (
+                <div className="text-center py-8">
+                  <span className="material-symbols-outlined text-slate-300 text-[48px]">
+                    description
+                  </span>
+                  <p className="text-slate-500 text-sm mt-2">Sin documentos disponibles</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {documents.map(doc => (
+                    <div
+                      key={doc.id}
+                      onClick={() => setSelectedDoc(doc)}
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        selectedDoc?.id === doc.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-slate-200 hover:border-primary/50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="material-symbols-outlined text-primary">
+                          description
+                        </span>
+                        <div className="flex-1">
+                          <p className="font-medium text-slate-900">
+                            {doc.nombre_archivo || doc.nombre}
+                          </p>
+                          <p className="text-sm text-slate-600">
+                            {doc.categoria} - {doc.tipo}
+                          </p>
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${
+                            doc.estado === 'VALIDADO' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {doc.estado}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Panel de Extracción */}
+            <div className="bg-white rounded-xl shadow-card p-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                Extracción OCR
+              </h3>
+
+              {!selectedDoc ? (
+                <div className="text-center py-12">
+                  <span className="material-symbols-outlined text-slate-300 text-[64px]">
+                    touch_app
+                  </span>
+                  <p className="text-slate-500 text-sm mt-4">
+                    Seleccione un documento para extraer información
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Información del documento seleccionado */}
+                  <div className="p-4 bg-slate-50 rounded-lg">
+                    <p className="text-sm text-slate-600 mb-1">Documento seleccionado:</p>
+                    <p className="font-medium text-slate-900">
+                      {selectedDoc.nombre_archivo || selectedDoc.nombre}
+                    </p>
+                  </div>
+
+                  {/* Botón de extracción */}
+                  {!extractedData && (
+                    <button
+                      onClick={handleExtractOCR}
+                      disabled={processing}
+                      className="w-full py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {processing ? (
+                        <>
+                          <LoadingSpinner size="small" />
+                          <span>Extrayendo información...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined">scan</span>
+                          <span>Extraer información OCR</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Datos extraídos */}
+                  {extractedData && (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm font-medium text-green-800 mb-2">
+                          ✓ Información extraída exitosamente
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        {Object.entries(extractedData).map(([key, value]) => (
+                          <div key={key} className="p-3 border border-slate-200 rounded-lg">
+                            <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">
+                              {key.replace(/_/g, ' ')}
+                            </p>
+                            <p className="font-medium text-slate-900">
+                              {value || 'N/A'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Botón crear perfil */}
+                      <button
+                        onClick={handleCreateProfile}
+                        disabled={creatingProfile}
+                        className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {creatingProfile ? (
+                          <>
+                            <LoadingSpinner size="small" />
+                            <span>Creando perfil y validando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined">person_add</span>
+                            <span>Crear Perfil y Validar</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </Layout>
   );
 };

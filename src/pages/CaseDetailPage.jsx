@@ -22,17 +22,23 @@ const CaseDetailPage = () => {
   const loadCaseData = async () => {
     try {
       setLoading(true);
-      const cases = await caseService.listCases();
-      const foundCase = cases.find(c => c.id === caseId);
-      setCaseData(foundCase);
       
-      if (foundCase) {
-        const allDocs = await documentService.listDocuments();
-        const caseDocs = allDocs.filter(d => d.tramite_id === caseId);
-        setDocuments(caseDocs);
-      }
+      // Obtener el trámite específico (incluye documentos en la respuesta del backend)
+      const tramiteData = await caseService.getCase(caseId);
       
-      setAppointments([]); // Backend no tiene citas aún
+      // El backend retorna: { id, tipo, solicitante_id, estado, documentos: [...], citas: [...], eventos: [...] }
+      setCaseData({
+        id: tramiteData.id,
+        type: tramiteData.tipo,
+        applicant: tramiteData.solicitante_id,
+        status: tramiteData.estado,
+        legalStatus: 'PENDIENTE'
+      });
+      
+      // Los documentos vienen incluidos en la respuesta del backend
+      setDocuments(tramiteData.documentos || []);
+      setAppointments(tramiteData.citas || []);
+      
     } catch (error) {
       console.error('Error al cargar datos del caso:', error);
       showToast('Error al cargar datos del caso', 'error');
@@ -171,37 +177,63 @@ const CaseDetailPage = () => {
           <div className="p-6">
             {activeTab === 'documents' && (
               <div className="space-y-3">
-                {documents.map(doc => (
-                  <div key={doc.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:border-primary/50">
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-slate-600">description</span>
-                      <div>
-                        <p className="font-medium text-slate-900">{doc.name}</p>
-                        <p className="text-sm text-slate-500">{doc.category} • {doc.date}</p>
-                      </div>
-                    </div>
-                    <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
-                      {doc.status}
+                {documents.length === 0 ? (
+                  <div className="text-center py-12">
+                    <span className="material-symbols-outlined text-slate-300 text-[64px] mb-4">
+                      description
                     </span>
+                    <p className="text-slate-500 text-sm">Sin documentos añadidos</p>
                   </div>
-                ))}
+                ) : (
+                  documents.map(doc => (
+                    <div key={doc.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:border-primary/50">
+                      <div className="flex items-center gap-3">
+                        <span className="material-symbols-outlined text-slate-600">description</span>
+                        <div>
+                          <p className="font-medium text-slate-900">{doc.nombre_archivo || doc.name || 'Sin nombre'}</p>
+                          <p className="text-sm text-slate-500">{doc.categoria || doc.category} • {doc.tipo || doc.type}</p>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        doc.estado === 'RECIBIDO' || doc.status === 'RECIBIDO' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {doc.estado || doc.status}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
             {activeTab === 'appointments' && (
               <div className="space-y-3">
-                {appointments.map(apt => (
-                  <div key={apt.id} className="p-4 border border-slate-200 rounded-lg">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="material-symbols-outlined text-primary">event</span>
-                      <p className="font-medium text-slate-900">{apt.date} a las {apt.time}</p>
-                    </div>
-                    <p className="text-sm text-slate-600">Agente: {apt.agent}</p>
-                    <span className="inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
-                      {apt.status}
+                {appointments.length === 0 ? (
+                  <div className="text-center py-12">
+                    <span className="material-symbols-outlined text-slate-300 text-[64px] mb-4">
+                      event
                     </span>
+                    <p className="text-slate-500 text-sm">Sin citas programadas</p>
                   </div>
-                ))}
+                ) : (
+                  appointments.map(apt => (
+                    <div key={apt.id} className="p-4 border border-slate-200 rounded-lg">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="material-symbols-outlined text-primary">event</span>
+                        <p className="font-medium text-slate-900">{apt.fecha} a las {apt.hora}</p>
+                      </div>
+                      <p className="text-sm text-slate-600">Agente ID: {apt.agente_id}</p>
+                      <span className={`inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium ${
+                        apt.estado === 'CONFIRMADA' || apt.estado === 'PROGRAMADA'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {apt.estado}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 

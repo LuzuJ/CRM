@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios'; // Asegúrate de tener instalado: npm install axios
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/Toast';
 
 const LoginPage = () => {
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(''); // Se usará como correo
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showDemo, setShowDemo] = useState(false);
-  const { login, demoUsers } = useAuth();
+  
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const showToast = (message, type = 'info') => {
@@ -22,50 +23,54 @@ const LoginPage = () => {
     e.preventDefault();
     
     if (!username || !password) {
-      showToast('Por favor ingresa usuario y contraseña', 'warning');
+      showToast('Por favor ingresa correo y contraseña', 'warning');
       return;
     }
 
     setLoading(true);
     
-    // Simular delay de autenticación
-    setTimeout(() => {
-      const result = login(username, password);
+    try {
+      // 1. Petición al Backend FastAPI
+      const response = await axios.post('http://127.0.0.1:8000/auth/login', {
+        correo: username,   // El backend espera el campo "correo"
+        password: password  // El backend espera el campo "password"
+      });
+
+      // 2. Si llegamos aquí, el login fue exitoso (Status 200)
+      const data = response.data;
       
-      if (result.success) {
-        showToast(`Bienvenido, ${result.user.name}`, 'success');
-        setTimeout(() => {
-          navigate('/');
-        }, 500);
+      showToast(`Bienvenido, ${data.usuario.nombre}`, 'success');
+
+      // 3. Actualizar el contexto global de React (esto también guarda en localStorage)
+      if (login) login(data);
+
+      // 4. Redireccionar
+      setTimeout(() => {
+        navigate('/dashboard'); // O la ruta principal '/'
+      }, 500);
+
+    } catch (error) {
+      console.error("Error en login:", error);
+
+      // 6. Manejo de Errores
+      if (error.response) {
+        // El servidor respondió con un código de error
+        if (error.response.status === 401) {
+          showToast('Correo o contraseña incorrectos', 'error');
+        } else if (error.response.status === 422) {
+          showToast('Formato de datos inválido. ¿Ingresaste un correo?', 'warning');
+        } else {
+          showToast(`Error del servidor: ${error.response.status}`, 'error');
+        }
+      } else if (error.request) {
+        // No hubo respuesta (Backend apagado o problema de red)
+        showToast('No se pudo conectar con el servidor. Verifica que el backend esté corriendo.', 'error');
       } else {
-        showToast(result.error, 'error');
+        showToast('Ocurrió un error inesperado', 'error');
       }
-      
+    } finally {
       setLoading(false);
-    }, 800);
-  };
-
-  const handleQuickLogin = (user) => {
-    setUsername(user.username);
-    setPassword(user.password);
-  };
-
-  const getRoleBadge = (role) => {
-    const styles = {
-      'administrador': 'bg-purple-100 text-purple-700',
-      'agente': 'bg-blue-100 text-blue-700',
-      'cliente': 'bg-green-100 text-green-700'
-    };
-    return styles[role] || 'bg-slate-100 text-slate-700';
-  };
-
-  const getRoleIcon = (role) => {
-    const icons = {
-      'administrador': 'admin_panel_settings',
-      'agente': 'support_agent',
-      'cliente': 'person'
-    };
-    return icons[role] || 'person';
+    }
   };
 
   return (
@@ -81,7 +86,7 @@ const LoginPage = () => {
             </span>
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            CRM Legal Migration
+            VORTEX CRM
           </h1>
           <p className="text-slate-600">
             Sistema de Gestión de Trámites Migratorios
@@ -93,29 +98,29 @@ const LoginPage = () => {
           <h2 className="text-2xl font-bold text-slate-900 mb-6">Iniciar Sesión</h2>
           
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Usuario */}
+            {/* Input Usuario (Correo) */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Usuario
+                Correo Electrónico
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <span className="material-symbols-outlined text-slate-400 text-[20px]">
-                    person
+                    mail
                   </span>
                 </div>
                 <input
-                  type="text"
+                  type="text" // Puedes cambiar a type="email" para validación nativa del navegador
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Ingresa tu usuario"
+                  placeholder="ejemplo@correo.com"
                   className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   disabled={loading}
                 />
               </div>
             </div>
 
-            {/* Contraseña */}
+            {/* Input Contraseña */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Contraseña
@@ -168,62 +173,10 @@ const LoginPage = () => {
             </button>
           </form>
 
-          {/* Separador */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-slate-500">Usuarios de Demostración</span>
-            </div>
+          {/* Footer */}
+          <div className="mt-6 text-center text-sm text-slate-500 border-t border-slate-100 pt-4">
+            <p>Verificación y Validación © 2026</p>
           </div>
-
-          {/* Toggle Demo Users */}
-          <button
-            onClick={() => setShowDemo(!showDemo)}
-            className="w-full py-2 text-primary hover:text-primary-dark font-medium text-sm flex items-center justify-center gap-1 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              {showDemo ? 'expand_less' : 'expand_more'}
-            </span>
-            {showDemo ? 'Ocultar' : 'Ver'} usuarios de prueba
-          </button>
-
-          {/* Demo Users Grid */}
-          {showDemo && (
-            <div className="mt-4 space-y-2">
-              {demoUsers.map(user => (
-                <div
-                  key={user.id}
-                  onClick={() => handleQuickLogin(user)}
-                  className="p-3 border border-slate-200 rounded-lg hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center group-hover:bg-primary/10">
-                        <span className="material-symbols-outlined text-slate-600 group-hover:text-primary text-[20px]">
-                          {getRoleIcon(user.role)}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900 text-sm">{user.name}</p>
-                        <p className="text-xs text-slate-500">{user.username}</p>
-                      </div>
-                    </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${getRoleBadge(user.role)}`}>
-                      {user.role}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="mt-6 text-center text-sm text-slate-500">
-          <p>Sistema de demostración - Datos de prueba</p>
-          <p className="mt-1">Verificación y Validación © 2026</p>
         </div>
       </div>
     </div>

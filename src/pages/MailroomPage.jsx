@@ -20,7 +20,8 @@ const MailroomPage = () => {
     nombre_archivo: '',
     tipo: 'PASAPORTE',
     categoria: 'Identificación',
-    estado: 'EN ESPERA'
+    estado: 'EN ESPERA',
+    id_tramite: ''
   });
   const [selectedFile, setSelectedFile] = useState(null);
 
@@ -120,10 +121,16 @@ const MailroomPage = () => {
       return;
     }
 
+    // Validar que se seleccione un trámite
+    if (!newDocument.id_tramite) {
+      showToast('Debe seleccionar un trámite', 'warning');
+      return;
+    }
+
     try {
       setUploading(true);
       
-      // El backend espera: id, nombre_archivo, tipo, categoria, estado
+      // El backend espera: id, nombre_archivo, tipo, categoria, estado, id_tramite
       const docData = {
         id: newDocument.id,
         nombre_archivo: newDocument.nombre_archivo,
@@ -133,7 +140,7 @@ const MailroomPage = () => {
         datos_extraidos: {},
         nivel_confianza: 0.0,
         notas: '',
-        id_tramite: null
+        id_tramite: newDocument.id_tramite
       };
       
       // Paso 1: Crear el registro del documento
@@ -228,7 +235,8 @@ const MailroomPage = () => {
                       nombre_archivo: '',
                       tipo: 'PASAPORTE',
                       categoria: 'Identificación',
-                      estado: 'EN ESPERA'
+                      estado: 'EN ESPERA',
+                      id_tramite: ''
                     });
                     setSelectedFile(null);
                   }}
@@ -471,6 +479,25 @@ const MailroomPage = () => {
                   <option value="Migratorio">Migratorio</option>
                   <option value="Académico">Académico</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">Trámite *</label>
+                <select
+                  value={newDocument.id_tramite}
+                  onChange={(e) => setNewDocument({...newDocument, id_tramite: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="">Seleccione un trámite</option>
+                  {cases.map(tramite => (
+                    <option key={tramite.id} value={tramite.id}>
+                      {tramite.id} - {tramite.tipo}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-1">
+                  El documento se asignará a este trámite
+                </p>
               </div>
             </div>
 

@@ -31,9 +31,14 @@ export const API_CONFIG = {
 
 // Endpoints disponibles
 export const ENDPOINTS = {
+  // Auth
+  LOGIN: '/auth/login',
+  ME: '/auth/me',
+  
   // Documentos
   DOCUMENTS: '/documentos/',
   DOCUMENT_UPLOAD: (docId) => `/documentos/${docId}/upload`,
+  MY_DOCUMENTS: '/documentos/mis-documentos',
   
   // OCR
   OCR_PROCESS: (docId) => `/ocr/procesar/${docId}`,
@@ -42,6 +47,12 @@ export const ENDPOINTS = {
   TRAMITES: '/tramites/',
   TRAMITE_DETAIL: (tramiteId) => `/tramites/${tramiteId}`,
   TRAMITE_LINK_DOC: (tramiteId, docId) => `/tramites/${tramiteId}/vincular-documento/${docId}`,
+  MY_TRAMITES: '/tramites/mis-tramites',
+  
+  // Citas
+  CITAS: '/citas/',
+  MY_CITAS: '/citas/mis-citas',
+  CITA_DISPONIBILIDAD: '/citas/disponibilidad',
   
   // Dashboard
   DASHBOARD_SUMMARY: '/dashboard/resumen',

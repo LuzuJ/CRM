@@ -2,21 +2,20 @@ import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
-import { citasService, caseService } from '../services';
+import { citasService, caseService, usuarioService } from '../services';
 
 const AppointmentsPage = () => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState('');
-  const [selectedAgent, setSelectedAgent] = useState('AGENTE_01');
+  const [selectedAgent, setSelectedAgent] = useState('');
   const [selectedCase, setSelectedCase] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [toast, setToast] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [cases, setCases] = useState([]);
+  const [agents, setAgents] = useState([]);
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(false);
-  
-  const agents = ['AGENTE_01', 'AGENTE_02', 'AGENTE_03'];
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -32,9 +31,21 @@ const AppointmentsPage = () => {
 
   const loadData = async () => {
     try {
-      const casesData = await caseService.getAllCases();
+      // Cargar agentes desde el backend (solo usuarios con rol 'agente')
+      const agentesData = await usuarioService.listarAgentes();
+      setAgents(agentesData || []);
+      
+      // Si hay agentes disponibles, seleccionar el primero por defecto
+      if (agentesData && agentesData.length > 0 && !selectedAgent) {
+        setSelectedAgent(agentesData[0].id.toString());
+      }
+      
+      // Cargar trámites del usuario autenticado
+      // El backend ya filtra por usuario usando el token
+      const casesData = await caseService.listCases();
       setCases(casesData || []);
-
+      
+      // Cargar citas existentes
       const appointmentsData = await citasService.listarCitas();
       setAppointments(appointmentsData || []);
     } catch (error) {
@@ -46,11 +57,31 @@ const AppointmentsPage = () => {
   const loadAvailability = async () => {
     try {
       const availData = await citasService.consultarDisponibilidad(selectedDate, selectedAgent);
-      setAvailability(availData || []);
+      
+      // Si el backend retorna datos, usarlos
+      if (availData && availData.length > 0) {
+        setAvailability(availData);
+      } else {
+        // Si no hay datos, generar slots por defecto (todos disponibles)
+        setAvailability(generateDefaultTimeSlots());
+      }
     } catch (error) {
-      console.error('Error loading availability:', error);
-      showToast('Error al cargar disponibilidad', 'error');
+      console.warn('Error loading availability:', error);
+      // En caso de error, generar slots por defecto (todos disponibles)
+      setAvailability(generateDefaultTimeSlots());
     }
+  };
+
+  // Generar slots de tiempo por defecto (9am - 5pm, cada hora)
+  const generateDefaultTimeSlots = () => {
+    const horarios = ["09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00"];
+    
+    return horarios.map(hora => ({
+      agente_id: selectedAgent,
+      fecha: selectedDate,
+      hora: hora,
+      estado: "LIBRE"
+    }));
   };
 
   const showToast = (message, type = 'info') => {
@@ -70,7 +101,7 @@ const AppointmentsPage = () => {
         id: `CITA-${Date.now()}`,
         fecha: selectedDate,
         hora: selectedTime,
-        agente_id: selectedAgent,
+        agente_id: parseInt(selectedAgent), // Convertir a número entero
         tramite_id: selectedCase,
         estado: 'PROGRAMADA'
       };
@@ -110,9 +141,13 @@ const AppointmentsPage = () => {
   };
 
   const getAvailableTimeSlots = () => {
-    return availability.filter(slot => 
-      slot.agente_id === selectedAgent && slot.estado === 'LIBRE'
-    );
+    // Filtrar slots que correspondan al agente seleccionado y estén libres
+    return availability.filter(slot => {
+      // El agente_id del backend puede ser un correo o ID, comparamos con el selectedAgent
+      return (slot.agente_id === selectedAgent || 
+              slot.agente_id === String(selectedAgent)) && 
+              slot.estado === 'LIBRE';
+    });
   };
 
   const formatTime = (timeString) => {
@@ -150,8 +185,11 @@ const AppointmentsPage = () => {
                   onChange={(e) => setSelectedAgent(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                 >
+                  <option value="">Seleccione un agente</option>
                   {agents.map(agent => (
-                    <option key={agent} value={agent}>{agent}</option>
+                    <option key={agent.id} value={agent.id}>
+                      {agent.nombre_completo}
+                    </option>
                   ))}
                 </select>
               </div>

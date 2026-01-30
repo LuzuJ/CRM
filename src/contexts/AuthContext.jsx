@@ -12,79 +12,62 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Usuarios de demostración
-  const demoUsers = [
-    {
-      id: 'USER_001',
-      username: 'agente1',
-      password: 'agente123',
-      role: 'agente',
-      name: 'María González',
-      email: 'maria.gonzalez@crm.com',
-      specialty: 'Visas de Trabajo'
-    },
-    {
-      id: 'USER_002',
-      username: 'agente2',
-      password: 'agente123',
-      role: 'agente',
-      name: 'Carlos Mendez',
-      email: 'carlos.mendez@crm.com',
-      specialty: 'Visas de Estudiante'
-    },
-    {
-      id: 'USER_003',
-      username: 'cliente1',
-      password: 'cliente123',
-      role: 'cliente',
-      name: 'María Fernanda González Pérez',
-      email: 'maria.gonzalez@email.com',
-      caseId: 1
-    },
-    {
-      id: 'USER_004',
-      username: 'cliente2',
-      password: 'cliente123',
-      role: 'cliente',
-      name: 'Juan Carlos Rodríguez López',
-      email: 'juan.rodriguez@email.com',
-      caseId: 2
-    }
-  ];
-
   // Verificar si hay sesión guardada al cargar
   useEffect(() => {
-    const savedUser = localStorage.getItem('crm_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    const savedUser = localStorage.getItem('usuario');
+    const savedToken = localStorage.getItem('token');
+    
+    if (savedUser && savedToken) {
+      try {
+        const userData = JSON.parse(savedUser);
+        setUser({
+          id: userData.id,
+          username: userData.correo,
+          role: userData.rol || 'agente',
+          name: userData.nombre,
+          email: userData.correo,
+          ...userData
+        });
+      } catch (error) {
+        console.error('Error al cargar usuario guardado:', error);
+        localStorage.removeItem('usuario');
+        localStorage.removeItem('token');
+      }
     }
     setLoading(false);
   }, []);
 
-  const login = (username, password) => {
-    const foundUser = demoUsers.find(
-      u => u.username === username && u.password === password
-    );
-
-    if (foundUser) {
-      const { password: _, ...userWithoutPassword } = foundUser;
-      // Generar un token simple para mantener la sesión
-      const token = btoa(JSON.stringify({ username, timestamp: Date.now() }));
+  const login = (dataFromBackend) => {
+    // Si recibimos datos del backend (objeto con usuario, token, etc.)
+    if (dataFromBackend && dataFromBackend.usuario) {
+      const userData = {
+        id: dataFromBackend.usuario.id,
+        username: dataFromBackend.usuario.correo,
+        role: dataFromBackend.usuario.rol || 'agente',
+        name: dataFromBackend.usuario.nombre,
+        email: dataFromBackend.usuario.correo,
+        ...dataFromBackend.usuario
+      };
       
-      setUser(userWithoutPassword);
-      localStorage.setItem('crm_user', JSON.stringify(userWithoutPassword));
-      localStorage.setItem('token', token);
+      setUser(userData);
+      localStorage.setItem('usuario', JSON.stringify(dataFromBackend.usuario));
+      localStorage.setItem('token', dataFromBackend.token);
       
-      return { success: true, user: userWithoutPassword };
+      if (dataFromBackend.perfil_cliente) {
+        localStorage.setItem('perfil_cliente', JSON.stringify(dataFromBackend.perfil_cliente));
+      }
+      
+      return { success: true, user: userData };
     }
 
-    return { success: false, error: 'Usuario o contraseña incorrectos' };
+    return { success: false, error: 'Datos de usuario inválidos' };
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('crm_user');
+    localStorage.removeItem('usuario');
     localStorage.removeItem('token');
+    localStorage.removeItem('perfil_cliente');
   };
 
   const hasRole = (allowedRoles) => {
@@ -109,8 +92,7 @@ export const AuthProvider = ({ children }) => {
       logout,
       hasRole,
       canAccessCase,
-      isAuthenticated: !!user,
-      demoUsers // Para mostrar en la página de login
+      isAuthenticated: !!user
     }}>
       {children}
     </AuthContext.Provider>

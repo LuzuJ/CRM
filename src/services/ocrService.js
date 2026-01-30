@@ -2,13 +2,18 @@ import api from './api';
 
 /**
  * Servicio para procesamiento OCR
+ * Alineado con endpoints del backend FastAPI
  */
 export const ocrService = {
   /**
    * Procesar documento con OCR
+   * Endpoint: POST /ocr/procesar/{doc_id}
+   * Headers: Content-Type: multipart/form-data
+   * Body: FormData con key 'file'
+   * Response: { status: 'ok', datos: {...}, confianza: 0.95 }
    * @param {string} docId - ID del documento
-   * @param {File} file - Archivo a procesar
-   * @returns {Promise}
+   * @param {File} file - Archivo a procesar (imagen o PDF)
+   * @returns {Promise} Objeto con status, datos extraídos y nivel de confianza
    */
   processDocument: async (docId, file) => {
     const formData = new FormData();
@@ -17,16 +22,6 @@ export const ocrService = {
     const response = await api.post(`/ocr/procesar/${docId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    return response.data;
-  },
-
-  /**
-   * Procesar documento OCR usando ID existente
-   * @param {string} docId - ID del documento ya cargado
-   * @returns {Promise}
-   */
-  processExistingDocument: async (docId) => {
-    const response = await api.post(`/ocr/procesar/${docId}`);
     return response.data;
   }
 };

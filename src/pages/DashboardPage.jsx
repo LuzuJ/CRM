@@ -25,15 +25,19 @@ const DashboardPage = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      
+      // Obtener el resumen del dashboard
+      // El backend ya filtra según el usuario autenticado usando el token
       const data = await dashboardService.getSummary();
       setDashboardData(data);
       
-      // Usar solo datos del backend
+      // El backend retorna: { tareas_pendientes, alertas_activas, items_tareas[], items_alertas[] }
+      // Mapear a la estructura interna del componente
       setCases(data.tramites || []);
       setDocuments(data.documentos || []);
       setAppointments(data.citas || []);
+      setActivities(data.actividades_recientes || []);
       setProfiles([]);
-      setActivities([]);
     } catch (error) {
       console.error('Error al cargar dashboard del backend:', error);
       setCases([]);
@@ -122,21 +126,21 @@ const DashboardPage = () => {
     if (user?.role === 'cliente') {
       // Filtrar actividades del cliente
       const myActivities = activities.filter(a => a.caseId === user.caseId).slice(0, 5);
-      return myActivities.length > 0 ? myActivities.map(a => ({
-        action: a.action,
-        case: `Trámite ${a.caseId}`,
-        time: a.date
-      })) : [
+      return myActivities.length > 0 ? myActivities : [
         { action: 'No hay actividad reciente', case: 'N/A', time: '-' }
       ];
     }
     
-    return [
-      { action: 'Documento vinculado', case: 'TR-B02', time: '10 min' },
-      { action: 'Cita agendada', case: 'TR-OK', time: '25 min' },
-      { action: 'Validación completada', case: 'PERFIL_OK', time: '1 hora' },
-      { action: 'OCR procesado', case: 'DOC_003', time: '2 horas' },
-    ];
+    // Para agente, mostrar actividades desde el backend
+    return activities.length > 0 
+      ? activities.slice(0, 5).map(a => ({
+          action: a.descripcion || a.action || 'Actividad',
+          case: a.tramite_id || a.case || 'N/A',
+          time: a.tiempo || a.time || 'Hace poco'
+        }))
+      : [
+          { action: 'No hay actividad reciente', case: 'N/A', time: '-' }
+        ];
   };
   
   const recentActivity = getRecentActivity();

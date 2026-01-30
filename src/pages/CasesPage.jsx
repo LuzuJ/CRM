@@ -42,7 +42,11 @@ const CasesPage = () => {
   const loadCasesFromBackend = async () => {
     try {
       setLoading(true);
+      
+      // El backend ya filtra los trámites según el usuario autenticado usando el token
+      // GET /tramites/ retorna todos los trámites (si es agente) o solo los del usuario (si es cliente)
       const data = await caseService.listCases();
+      
       // Mapear datos del backend al formato esperado
       const mappedCases = (data || []).map(c => ({
         id: c.id || '',
@@ -63,10 +67,8 @@ const CasesPage = () => {
     }
   };
 
-  // Filtrar casos según el rol del usuario
-  const userCases = user?.role === 'cliente'
-    ? cases.filter(c => c.id === user.caseId)
-    : cases;
+  // Filtrar casos según el rol del usuario (ya filtrado en el backend)
+  const userCases = cases;
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });

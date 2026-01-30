@@ -10,6 +10,7 @@ export { citasService } from './citasService';
 export { eventosService } from './eventosService';
 export { perfilesService } from './perfilesService';
 export { clienteService } from './clienteService';
+export { usuarioService } from './usuarioService';
 
 // ============================================================================
 // SERVICIOS LEGACY (Para compatibilidad con código existente)

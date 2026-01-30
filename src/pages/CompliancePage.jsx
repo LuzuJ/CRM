@@ -1,34 +1,51 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
-import { perfilesService } from '../services';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { caseService, perfilesService } from '../services';
 
 const CompliancePage = () => {
+  const [tramites, setTramites] = useState([]);
+  const [selectedTramite, setSelectedTramite] = useState('');
   const [perfiles, setPerfiles] = useState([]);
+  const [selectedPerfil, setSelectedPerfil] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editedData, setEditedData] = useState({});
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newPerfil, setNewPerfil] = useState({
-    id: '',
-    nombres_ocr: '',
-    cedula: '',
-    fecha_nac_ocr: '',
-    estado_validacion: 'PENDIENTE'
-  });
-  const [validationResult, setValidationResult] = useState(null);
 
   useEffect(() => {
-    loadPerfiles();
+    loadTramites();
   }, []);
 
-  const loadPerfiles = async () => {
+  useEffect(() => {
+    if (selectedTramite) {
+      loadPerfilesByTramite();
+    }
+  }, [selectedTramite]);
+
+  const loadTramites = async () => {
+    try {
+      const data = await caseService.listCases();
+      setTramites(data || []);
+    } catch (error) {
+      console.error('Error cargando trámites:', error);
+      showToast('Error al cargar trámites', 'error');
+    }
+  };
+
+  const loadPerfilesByTramite = async () => {
     setLoading(true);
     try {
-      const data = await perfilesService.listarPerfiles();
-      setPerfiles(data || []);
+      // Obtener todos los perfiles y filtrar por tramite (cliente_id)
+      const tramite = await caseService.getCase(selectedTramite);
+      const allPerfiles = await perfilesService.listarPerfiles();
+      const perfilesFiltrados = allPerfiles.filter(p => p.cliente_id === tramite.solicitante_id);
+      setPerfiles(perfilesFiltrados || []);
     } catch (error) {
-      console.error('Error loading perfiles:', error);
-      showToast('Error al cargar perfiles', 'error');
+      console.error('Error cargando perfiles:', error);
+      showToast('Error al cargar perfiles del trámite', 'error');
     } finally {
       setLoading(false);
     }
@@ -39,26 +56,63 @@ const CompliancePage = () => {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleCreatePerfil = async () => {
-    if (!newPerfil.id || !newPerfil.nombres_ocr || !newPerfil.cedula || !newPerfil.fecha_nac_ocr) {
-      showToast('Complete todos los campos', 'warning');
-      return;
-    }
-
+  const handleOpenModal = async (perfil) => {
+    setLoading(true);
     try {
-      await perfilesService.crearPerfil(newPerfil);
-      showToast('Perfil creado exitosamente', 'success');
-      setShowCreateModal(false);
-      setNewPerfil({
-        id: '',
-        nombres_ocr: '',
-        cedula: '',
-        fecha_nac_ocr: '',
-        estado_validacion: 'PENDIENTE'
+      // Obtener datos completos del perfil
+      const perfilCompleto = await perfilesService.obtenerPerfil(perfil.id);
+      setSelectedPerfil(perfilCompleto);
+      setEditedData({
+        nombres_ocr: perfilCompleto.nombres_ocr || '',
+        cedula_ocr: perfilCompleto.cedula_ocr || '',
+        fecha_nacimiento_ocr: perfilCompleto.fecha_nacimiento_ocr || ''
       });
-      await loadPerfiles();
+      setShowModal(true);
+      setEditMode(false);
     } catch (error) {
-      showToast('Error al crear perfil: ' + error.message, 'error');
+      console.error('Error cargando perfil:', error);
+      showToast('Error al cargar detalles del perfil', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleModifyInfo = async () => {
+    setLoading(true);
+    try {
+      await perfilesService.actualizarPerfil(selectedPerfil.id, {
+        ...editedData,
+        modo_manual_habilitado: true
+      });
+      showToast('Información actualizada correctamente', 'success');
+      setEditMode(false);
+      // Recargar perfil actualizado
+      const perfilActualizado = await perfilesService.obtenerPerfil(selectedPerfil.id);
+      setSelectedPerfil(perfilActualizado);
+      loadPerfilesByTramite();
+    } catch (error) {
+      console.error('Error actualizando perfil:', error);
+      showToast('Error al actualizar información', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAccept = async () => {
+    setLoading(true);
+    try {
+      // Actualizar perfil como aceptado
+      await perfilesService.actualizarPerfil(selectedPerfil.id, {
+        estado_validacion: 'ACEPTADO'
+      });
+      showToast('Perfil aceptado exitosamente', 'success');
+      setShowModal(false);
+      loadPerfilesByTramite();
+    } catch (error) {
+      console.error('Error aceptando perfil:', error);
+      showToast('Error al aceptar perfil', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -32,8 +32,11 @@ api.interceptors.response.use(
   (error) => {
     // Manejo global de errores
     if (error.response?.status === 401) {
-      // Redirigir a login o refrescar token
+      // Token inválido o expirado - Redirigir a login
+      console.warn('Sesión expirada o no autorizado');
       localStorage.removeItem('token');
+      localStorage.removeItem('usuario');
+      localStorage.removeItem('perfil_cliente');
       window.location.href = '/login';
     }
     return Promise.reject(error);

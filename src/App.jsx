@@ -5,7 +5,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import MailroomPage from './pages/MailroomPage';
 import OCRExtractionPage from './pages/OCRExtractionPage';
-import CompliancePage from './pages/CompliancePage';
+import CompliancePage from './pages/CompliancePage_NEW';
 import AppointmentsPage from './pages/AppointmentsPage';
 import DeadlinesPage from './pages/DeadlinesPage';
 import CaseDetailPage from './pages/CaseDetailPage';
@@ -20,12 +20,18 @@ function App() {
       {/* Ruta de Login */}
       <Route 
         path="/login" 
-        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} 
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} 
+      />
+
+      {/*Si entran a la raíz '/', los mandamos a '/dashboard' */}
+      <Route 
+        path="/" 
+        element={<Navigate to="/dashboard" replace />} 
       />
 
       {/* Rutas Protegidas - Todas requieren autenticación */}
       <Route 
-        path="/" 
+        path="/dashboard" 
         element={
           <ProtectedRoute>
             <DashboardPage />
