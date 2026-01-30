@@ -30,7 +30,7 @@ export const dashboardService = {
    */
   reagendarTarea: async (tareaId, nuevaFecha) => {
     const response = await api.post(
-      `/dashboard/tareas/${tareaId}/resolver?accion=reagendar`,
+      `/dashboard/tareas/${tareaId}/resolver`,
       { nueva_fecha: nuevaFecha }
     );
     return response.data;
@@ -44,7 +44,7 @@ export const dashboardService = {
    */
   cancelarTarea: async (tareaId, motivo) => {
     const response = await api.post(
-      `/dashboard/tareas/${tareaId}/resolver?accion=cancelar`,
+      `/dashboard/tareas/${tareaId}/resolver`,
       { motivo }
     );
     return response.data;

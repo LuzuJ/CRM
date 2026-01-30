@@ -6,6 +6,10 @@ export { documentService } from './documentService';
 export { ocrService } from './ocrService';
 export { caseService } from './caseService';
 export { dashboardService } from './dashboardService';
+export { citasService } from './citasService';
+export { eventosService } from './eventosService';
+export { perfilesService } from './perfilesService';
+export { clienteService } from './clienteService';
 
 // ============================================================================
 // SERVICIOS LEGACY (Para compatibilidad con código existente)

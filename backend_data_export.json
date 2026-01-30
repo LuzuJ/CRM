@@ -1,0 +1,158 @@
+﻿{
+    "dashboard":  {
+                      "tareas_pendientes":  0,
+                      "alertas_activas":  0,
+                      "items_tareas":  [
+
+                                       ],
+                      "items_alertas":  [
+
+                                        ]
+                  },
+    "documentos":  {
+                       "value":  [
+                                     {
+                                         "tipo":  "CÃ©dula Ecuador",
+                                         "id":  "DOC-001",
+                                         "nombre_archivo":  "temp_placeholder.pdf",
+                                         "estado":  "EN ESPERA",
+                                         "id_tramite":  null,
+                                         "categoria":  "IdentificaciÃ³n",
+                                         "datos_extraidos":  {
+
+                                                             },
+                                         "nivel_confianza":  1.0,
+                                         "notas":  null
+                                     },
+                                     {
+                                         "tipo":  "CÃ©dula Ecuador",
+                                         "id":  "DOC_OCR_1",
+                                         "nombre_archivo":  "cedula_clara.jpg",
+                                         "estado":  "PENDIENTE",
+                                         "id_tramite":  null,
+                                         "categoria":  "IdentificaciÃ³n",
+                                         "datos_extraidos":  {
+
+                                                             },
+                                         "nivel_confianza":  1.0,
+                                         "notas":  null
+                                     },
+                                     {
+                                         "tipo":  "Pasaporte",
+                                         "id":  "DOC_OCR_2",
+                                         "nombre_archivo":  "pasaporte_mancha.jpg",
+                                         "estado":  "PENDIENTE",
+                                         "id_tramite":  null,
+                                         "categoria":  "IdentificaciÃ³n",
+                                         "datos_extraidos":  {
+
+                                                             },
+                                         "nivel_confianza":  1.0,
+                                         "notas":  null
+                                     },
+                                     {
+                                         "tipo":  "Visa Americana",
+                                         "id":  "DOC_OCR_3",
+                                         "nombre_archivo":  "visa_ok.pdf",
+                                         "estado":  "PENDIENTE",
+                                         "id_tramite":  null,
+                                         "categoria":  "Visa",
+                                         "datos_extraidos":  {
+
+                                                             },
+                                         "nivel_confianza":  1.0,
+                                         "notas":  null
+                                     },
+                                     {
+                                         "tipo":  "CÃ©dula Ecuador",
+                                         "id":  "DOC_OCR_ERR",
+                                         "nombre_archivo":  "archivo_corrupto.png",
+                                         "estado":  "PENDIENTE",
+                                         "id_tramite":  null,
+                                         "categoria":  "IdentificaciÃ³n",
+                                         "datos_extraidos":  {
+
+                                                             },
+                                         "nivel_confianza":  1.0,
+                                         "notas":  null
+                                     },
+                                     {
+                                         "tipo":  "PASAPORTE",
+                                         "id":  "DOC_001",
+                                         "nombre_archivo":  "pasaporte_juan.pdf",
+                                         "estado":  "RECIBIDO",
+                                         "id_tramite":  "TR-A02",
+                                         "categoria":  "IdentificaciÃ³n",
+                                         "datos_extraidos":  {
+
+                                                             },
+                                         "nivel_confianza":  1.0,
+                                         "notas":  null
+                                     },
+                                     {
+                                         "tipo":  "PASAPORTE",
+                                         "id":  "DOC_TEST",
+                                         "nombre_archivo":  "test.pdf",
+                                         "estado":  "EN ESPERA",
+                                         "id_tramite":  null,
+                                         "categoria":  "Identificacion",
+                                         "datos_extraidos":  {
+
+                                                             },
+                                         "nivel_confianza":  1.0,
+                                         "notas":  null
+                                     },
+                                     {
+                                         "tipo":  "ANTECEDENTES",
+                                         "id":  "DOC_002",
+                                         "nombre_archivo":  "record_policial.pdf",
+                                         "estado":  "RECIBIDO",
+                                         "id_tramite":  "TR-A02",
+                                         "categoria":  "Antecedentes Penales",
+                                         "datos_extraidos":  {
+
+                                                             },
+                                         "nivel_confianza":  1.0,
+                                         "notas":  null
+                                     },
+                                     {
+                                         "tipo":  "FOTO",
+                                         "id":  "DOC_003",
+                                         "nombre_archivo":  "foto_carnet.jpg",
+                                         "estado":  "RECIBIDO",
+                                         "id_tramite":  "TR-A02",
+                                         "categoria":  "BiometrÃ­a",
+                                         "datos_extraidos":  {
+
+                                                             },
+                                         "nivel_confianza":  1.0,
+                                         "notas":  null
+                                     },
+                                     {
+                                         "tipo":  "CONTRATO",
+                                         "id":  "DOC_004",
+                                         "nombre_archivo":  "contrato.pdf",
+                                         "estado":  "RECIBIDO",
+                                         "id_tramite":  "TR-A02",
+                                         "categoria":  "Laboral",
+                                         "datos_extraidos":  {
+
+                                                             },
+                                         "nivel_confianza":  1.0,
+                                         "notas":  null
+                                     }
+                                 ],
+                       "Count":  10
+                   },
+    "tramites":  {
+                     "value":  [
+                                   {
+                                       "tipo":  "Visa Trabajo",
+                                       "solicitante_id":  "SL-J002",
+                                       "estado":  "ACTIVO",
+                                       "id":  "TR-A02"
+                                   }
+                               ],
+                     "Count":  1
+                 }
+}

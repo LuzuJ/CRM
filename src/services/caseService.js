@@ -32,5 +32,36 @@ export const caseService = {
   linkDocument: async (tramiteId, docId) => {
     const response = await api.post(`/tramites/${tramiteId}/vincular-documento/${docId}`);
     return response.data;
+  },
+
+  /**
+   * Crear un nuevo trámite
+   * @param {Object} caseData - Datos del trámite
+   * @returns {Promise}
+   */
+  createCase: async (caseData) => {
+    const response = await api.post('/tramites/', caseData);
+    return response.data;
+  },
+
+  /**
+   * Actualizar trámite
+   * @param {string} tramiteId - ID del trámite
+   * @param {Object} updates - Datos a actualizar
+   * @returns {Promise}
+   */
+  updateCase: async (tramiteId, updates) => {
+    const response = await api.put(`/tramites/${tramiteId}`, updates);
+    return response.data;
+  },
+
+  /**
+   * Eliminar trámite
+   * @param {string} tramiteId - ID del trámite
+   * @returns {Promise}
+   */
+  deleteCase: async (tramiteId) => {
+    const response = await api.delete(`/tramites/${tramiteId}`);
+    return response.data;
   }
 };

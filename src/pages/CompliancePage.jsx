@@ -1,343 +1,313 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { useDemoData } from '../contexts/DemoContext';
+import { perfilesService } from '../services';
 
 const CompliancePage = () => {
-  const { profiles, updateProfileStatus } = useDemoData();
-  const [selectedProfile, setSelectedProfile] = useState(null);
-  const [validationResult, setValidationResult] = useState(null);
-  const [validating, setValidating] = useState(false);
+  const [perfiles, setPerfiles] = useState([]);
   const [toast, setToast] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newPerfil, setNewPerfil] = useState({
+    id: '',
+    nombres_ocr: '',
+    cedula: '',
+    fecha_nac_ocr: '',
+    estado_validacion: 'PENDIENTE'
+  });
+  const [validationResult, setValidationResult] = useState(null);
+
+  useEffect(() => {
+    loadPerfiles();
+  }, []);
+
+  const loadPerfiles = async () => {
+    setLoading(true);
+    try {
+      const data = await perfilesService.listarPerfiles();
+      setPerfiles(data || []);
+    } catch (error) {
+      console.error('Error loading perfiles:', error);
+      showToast('Error al cargar perfiles', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleValidateProfile = async (profile) => {
-    setSelectedProfile(profile);
-    setValidating(true);
-    setValidationResult(null);
+  const handleCreatePerfil = async () => {
+    if (!newPerfil.id || !newPerfil.nombres_ocr || !newPerfil.cedula || !newPerfil.fecha_nac_ocr) {
+      showToast('Complete todos los campos', 'warning');
+      return;
+    }
 
     try {
-      // await validationService.validateProfile(profile.id);
-      
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      let result = {};
-
-      // Simulación basada en el perfil
-      switch (profile.id) {
-        case 'PERFIL_1':
-        case 'PERFIL_OK':
-          result = {
-            status: 'VALIDADO_LEGALMENTE',
-            civilRegistry: {
-              active: true,
-              civilStatus: 'CASADO',
-              officialName: profile.name || 'MARIA FERNANDA GONZALEZ PEREZ',
-              match: true,
-            },
-            migrationPolice: {
-              impediment: false,
-              reason: 'N/A',
-            },
-            message: 'Perfil validado exitosamente',
-          };
-          showToast('Perfil validado exitosamente', 'success');
-          break;
-
-        case 'PERFIL_2':
-        case 'PERFIL_IMP':
-          result = {
-            status: 'BLOQUEO_LEGAL',
-            civilRegistry: {
-              active: true,
-              civilStatus: 'CASADO',
-              officialName: profile.name || 'JUAN CARLOS RODRIGUEZ LOPEZ',
-              match: true,
-            },
-            migrationPolice: {
-              impediment: true,
-              reason: 'JUICIO ALIMENTOS',
-            },
-            message: 'Cliente con restricción migratoria vigente',
-          };
-          showToast('Cliente con restricción migratoria vigente', 'error');
-          break;
-
-        case 'PERFIL_3':
-        case 'PERFIL_RIP':
-          result = {
-            status: 'VALIDADO_LEGALMENTE',
-            civilRegistry: {
-              active: true,
-              civilStatus: 'SOLTERO',
-              officialName: profile.name || 'ANA PATRICIA MARTINEZ SILVA',
-              match: true,
-            },
-            migrationPolice: {
-              impediment: false,
-              reason: 'N/A',
-            },
-            message: 'Perfil validado exitosamente',
-          };
-          showToast('Perfil validado exitosamente', 'success');
-          break;
-
-        case 'PERFIL_ERR':
-          result = {
-            status: 'PENDIENTE',
-            civilRegistry: {
-              active: true,
-              civilStatus: 'SOLTERO',
-              officialName: 'CARLOS ERROR',
-              match: true,
-            },
-            migrationPolice: {
-              error: 'TIMEOUT',
-              reason: 'ERROR DE CONEXION',
-            },
-            message: 'Error al consultar servicios externos',
-            allowManualValidation: true,
-          };
-          showToast('Error al consultar servicios externos', 'warning');
-          break;
-
-        default:
-          // Para cualquier perfil no reconocido, validar exitosamente
-          result = {
-            status: 'VALIDADO_LEGALMENTE',
-            civilRegistry: {
-              active: true,
-              civilStatus: 'SOLTERO',
-              officialName: profile.name,
-              match: true,
-            },
-            migrationPolice: {
-              impediment: false,
-              reason: 'N/A',
-            },
-            message: 'Perfil validado exitosamente',
-          };
-          showToast('Perfil validado exitosamente', 'success');
-          break;
-      }
-
-      setValidationResult(result);
-
-      // Actualizar estado del perfil en contexto global
-      updateProfileStatus(profile.id, result.status);
+      await perfilesService.crearPerfil(newPerfil);
+      showToast('Perfil creado exitosamente', 'success');
+      setShowCreateModal(false);
+      setNewPerfil({
+        id: '',
+        nombres_ocr: '',
+        cedula: '',
+        fecha_nac_ocr: '',
+        estado_validacion: 'PENDIENTE'
+      });
+      await loadPerfiles();
     } catch (error) {
-      showToast('Error durante la validación', 'error');
-    } finally {
-      setValidating(false);
+      showToast('Error al crear perfil: ' + error.message, 'error');
     }
   };
 
-  const getStatusBadge = (status) => {
-    const styles = {
-      'PENDIENTE': 'bg-yellow-100 text-yellow-700',
-      'VALIDADO_LEGALMENTE': 'bg-green-100 text-green-700',
-      'BLOQUEO_LEGAL': 'bg-red-100 text-red-700',
-      'FRAUDE': 'bg-purple-100 text-purple-700',
-    };
-    return styles[status] || 'bg-gray-100 text-gray-700';
+  const handleValidarPerfil = async (perfilId) => {
+    setLoading(true);
+    try {
+      const result = await perfilesService.validarPerfil(perfilId);
+      setValidationResult(result);
+      showToast('Validación completada', 'success');
+      await loadPerfiles();
+    } catch (error) {
+      showToast('Error al validar perfil: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getStatusIcon = (status) => {
-    const icons = {
-      'PENDIENTE': 'pending',
-      'VALIDADO_LEGALMENTE': 'check_circle',
-      'BLOQUEO_LEGAL': 'block',
-      'FRAUDE': 'report',
-    };
-    return icons[status] || 'help';
+  const getEstadoColor = (estado) => {
+    switch (estado) {
+      case 'VALIDADO_LEGALMENTE':
+        return 'bg-success/10 text-success';
+      case 'BLOQUEO_LEGAL':
+        return 'bg-error/10 text-error';
+      case 'FRAUDE':
+        return 'bg-error/10 text-error';
+      case 'PENDIENTE':
+        return 'bg-warning/10 text-warning';
+      default:
+        return 'bg-slate-100 text-slate-600';
+    }
   };
 
   return (
     <Layout title="Legal Compliance Dashboard" subtitle="Validación de perfiles migratorios">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-        {/* Lista de Perfiles */}
-        <div className="bg-white rounded-xl shadow-card p-6 overflow-hidden flex flex-col">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">
-              Cola de Validación
-              <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">
-                {profiles.filter(p => p.status === 'PENDIENTE').length} Pendientes
-              </span>
-            </h2>
 
-            <div className="flex-1 overflow-auto space-y-3">
-              {profiles.map(profile => (
-                <div
-                  key={profile.id}
-                  onClick={() => !validating && handleValidateProfile(profile)}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    selectedProfile?.id === profile.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-slate-200 hover:border-primary/50 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-slate-900">{profile.name}</span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusBadge(profile.status)}`}>
-                      {profile.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-600">CI: {profile.cedula}</p>
-                  <p className="text-xs text-slate-500 mt-1">Nacimiento: {profile.birthDate}</p>
-                </div>
-              ))}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+        >
+          + Nuevo Perfil
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-card p-6">
+        <h2 className="text-lg font-bold text-slate-900 mb-4">Perfiles Registrados</h2>
+
+        {perfiles.length === 0 ? (
+          <div className="text-center py-8 text-slate-500">
+            <span className="material-symbols-outlined text-[48px] mb-3 block">person_off</span>
+            <p>No hay perfiles registrados</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">ID</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Nombres</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Cédula</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Fecha Nac.</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Estado</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Alerta</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {perfiles.map(perfil => (
+                  <tr key={perfil.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="py-3 px-4 text-sm">{perfil.id}</td>
+                    <td className="py-3 px-4 text-sm">{perfil.nombres_ocr}</td>
+                    <td className="py-3 px-4 text-sm">{perfil.cedula}</td>
+                    <td className="py-3 px-4 text-sm">{perfil.fecha_nac_ocr}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(perfil.estado_validacion)}`}>
+                        {perfil.estado_validacion}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-xs text-slate-600">
+                      {perfil.alerta_activa || '-'}
+                    </td>
+                    <td className="py-3 px-4">
+                      {perfil.estado_validacion === 'PENDIENTE' && (
+                        <button
+                          onClick={() => handleValidarPerfil(perfil.id)}
+                          disabled={loading}
+                          className="text-primary hover:text-primary-dark text-sm font-medium disabled:opacity-50"
+                        >
+                          Validar
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Crear Perfil</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">ID *</label>
+                <input
+                  type="text"
+                  value={newPerfil.id}
+                  onChange={(e) => setNewPerfil({...newPerfil, id: e.target.value})}
+                  placeholder="PERFIL-001"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">Nombres *</label>
+                <input
+                  type="text"
+                  value={newPerfil.nombres_ocr}
+                  onChange={(e) => setNewPerfil({...newPerfil, nombres_ocr: e.target.value})}
+                  placeholder="JUAN PEREZ"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">Cédula * (10 dígitos)</label>
+                <input
+                  type="text"
+                  value={newPerfil.cedula}
+                  onChange={(e) => setNewPerfil({...newPerfil, cedula: e.target.value})}
+                  placeholder="1710010010"
+                  maxLength="10"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Prueba: 1710010010 (OK), 1720020020 (Bloqueo), 1730030030 (Fraude)
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">Fecha de Nacimiento *</label>
+                <input
+                  type="date"
+                  value={newPerfil.fecha_nac_ocr}
+                  onChange={(e) => setNewPerfil({...newPerfil, fecha_nac_ocr: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleCreatePerfil}
+                className="flex-1 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+              >
+                Crear
+              </button>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="flex-1 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Panel de Validación */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-card overflow-hidden flex flex-col">
-            {validating ? (
-              <div className="flex-1 flex items-center justify-center">
-                <LoadingSpinner size="lg" message="Validando con servicios externos..." />
+      {validationResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Resultado de Validación</h3>
+            <div className="space-y-4">
+              <div>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getEstadoColor(validationResult.estado_validacion)}`}>
+                  {validationResult.estado_validacion}
+                </span>
               </div>
-            ) : selectedProfile && validationResult ? (
-              <div className="flex flex-col h-full">
-                {/* Header */}
-                <div className="p-6 border-b border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">{selectedProfile.name}</h2>
-                      <p className="text-sm text-slate-500">CI: {selectedProfile.cedula}</p>
-                    </div>
-                    <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${getStatusBadge(validationResult.status)}`}>
-                      <span className="material-symbols-outlined text-[20px]">
-                        {getStatusIcon(validationResult.status)}
-                      </span>
-                      <span className="font-bold text-sm">{validationResult.status}</span>
-                    </div>
-                  </div>
-
-                  {/* Alert Message */}
-                  {validationResult.status === 'BLOQUEO_LEGAL' && (
-                    <div className="mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-red-600">gavel</span>
-                        <p className="font-bold text-red-900">{validationResult.message}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {validationResult.status === 'FRAUDE' && (
-                    <div className="mt-4 p-4 bg-purple-50 border-l-4 border-purple-500 rounded">
-                      <p className="font-bold text-purple-900">{validationResult.message}</p>
-                    </div>
-                  )}
-
-                  {validationResult.allowManualValidation && (
-                    <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
-                      <p className="text-sm text-yellow-900">{validationResult.message}</p>
-                      <p className="text-xs text-yellow-700 mt-1">
-                        Se permite validación manual por evidencia física
-                      </p>
-                    </div>
-                  )}
+              {validationResult.alerta && (
+                <div className="bg-warning/10 border border-warning text-warning p-3 rounded-lg text-sm">
+                  ⚠️ {validationResult.alerta}
                 </div>
-
-                {/* Resultados de Validación */}
-                <div className="flex-1 overflow-auto p-6 space-y-6">
-                  {/* Registro Civil */}
-                  <div className="border border-slate-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="material-symbols-outlined text-primary">account_circle</span>
-                      <h3 className="font-bold text-slate-900">Registro Civil</h3>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <h4 className="font-medium text-slate-900 mb-2 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm">account_balance</span>
+                    Registro Civil
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-slate-600">Cédula:</span>
+                      <span className="ml-2 font-medium">{validationResult.registro_civil?.cedula}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-slate-500 mb-1">Estado Ciudadano</p>
-                        <p className={`font-medium ${validationResult.civilRegistry.active ? 'text-green-600' : 'text-red-600'}`}>
-                          {validationResult.civilRegistry.active ? 'ACTIVO' : 'INACTIVO'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 mb-1">Estado Civil</p>
-                        <p className="font-medium text-slate-900">{validationResult.civilRegistry.civilStatus}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 mb-1">Nombre Oficial</p>
-                        <p className="font-medium text-slate-900">{validationResult.civilRegistry.officialName}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 mb-1">Coincidencia</p>
-                        <p className={`font-medium ${validationResult.civilRegistry.match ? 'text-green-600' : 'text-red-600'}`}>
-                          {validationResult.civilRegistry.match ? '✓ Coincide' : '✗ No coincide'}
-                        </p>
-                      </div>
-                      {validationResult.civilRegistry.reason && (
-                        <div className="col-span-2">
-                          <p className="text-xs text-slate-500 mb-1">Motivo</p>
-                          <p className="font-medium text-red-600">{validationResult.civilRegistry.reason}</p>
-                        </div>
-                      )}
+                    <div>
+                      <span className="text-slate-600">Estado Civil:</span>
+                      <span className="ml-2 font-medium">{validationResult.registro_civil?.estado_civil}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Ciudadano Activo:</span>
+                      <span className={`ml-2 font-medium ${validationResult.registro_civil?.ciudadano_activo ? 'text-success' : 'text-error'}`}>
+                        {validationResult.registro_civil?.ciudadano_activo ? 'SÍ' : 'NO'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Nombres Oficiales:</span>
+                      <span className="ml-2 font-medium">{validationResult.registro_civil?.nombres_oficiales}</span>
                     </div>
                   </div>
-
-                  {/* Policía de Migración */}
-                  <div className="border border-slate-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="material-symbols-outlined text-primary">shield</span>
-                      <h3 className="font-bold text-slate-900">Policía de Migración</h3>
+                </div>
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <h4 className="font-medium text-slate-900 mb-2 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm">policy</span>
+                    Policía de Migración
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-slate-600">Impedimento Salida:</span>
+                      <span className={`ml-2 font-medium ${validationResult.policia_migracion?.impedimento_salida ? 'text-error' : 'text-success'}`}>
+                        {validationResult.policia_migracion?.impedimento_salida ? 'SÍ' : 'NO'}
+                      </span>
                     </div>
-                    {validationResult.migrationPolice.error ? (
-                      <div className="bg-yellow-50 rounded p-3">
-                        <p className="text-sm font-medium text-yellow-900">
-                          Error: {validationResult.migrationPolice.error}
-                        </p>
-                        <p className="text-xs text-yellow-700 mt-1">
-                          {validationResult.migrationPolice.reason}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-slate-500 mb-1">Impedimento de Salida</p>
-                          <p className={`font-medium ${validationResult.migrationPolice.impediment ? 'text-red-600' : 'text-green-600'}`}>
-                            {validationResult.migrationPolice.impediment ? 'SÍ' : 'NO'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-500 mb-1">Motivo</p>
-                          <p className="font-medium text-slate-900">{validationResult.migrationPolice.reason}</p>
-                        </div>
+                    <div>
+                      <span className="text-slate-600">Motivo:</span>
+                      <span className="ml-2 font-medium">{validationResult.policia_migracion?.motivo}</span>
+                    </div>
+                    {validationResult.policia_migracion?.error && (
+                      <div className="bg-error/10 text-error p-2 rounded text-xs mt-2">
+                        Error: {validationResult.policia_migracion.error}
                       </div>
                     )}
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="p-6 border-t border-slate-100">
-                  {validationResult.allowManualValidation && (
-                    <button className="w-full py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark">
-                      Aprobar Validación Manual
-                    </button>
-                  )}
+              </div>
+              {validationResult.requiere_confirmacion_manual && (
+                <div className="bg-info/10 border border-info text-info p-3 rounded-lg text-sm">
+                  ℹ️ Se requiere confirmación manual por discrepancia en los datos
                 </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-                <span className="material-symbols-outlined text-slate-300 text-[80px] mb-4">
-                  verified_user
-                </span>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                  Validación de Perfil Legal
-                </h3>
-                <p className="text-slate-500 text-sm max-w-md">
-                  Seleccione un perfil para iniciar la validación contra Registro Civil y Policía de Migración
-                </p>
-              </div>
-            )}
+              )}
+            </div>
+            <button
+              onClick={() => setValidationResult(null)}
+              className="mt-6 w-full py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
+      )}
     </Layout>
   );
 };

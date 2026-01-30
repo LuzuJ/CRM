@@ -68,8 +68,13 @@ export const AuthProvider = ({ children }) => {
 
     if (foundUser) {
       const { password: _, ...userWithoutPassword } = foundUser;
+      // Generar un token simple para mantener la sesión
+      const token = btoa(JSON.stringify({ username, timestamp: Date.now() }));
+      
       setUser(userWithoutPassword);
       localStorage.setItem('crm_user', JSON.stringify(userWithoutPassword));
+      localStorage.setItem('token', token);
+      
       return { success: true, user: userWithoutPassword };
     }
 
@@ -79,6 +84,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('crm_user');
+    localStorage.removeItem('token');
   };
 
   const hasRole = (allowedRoles) => {

@@ -1,21 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { useDemoData } from '../contexts/DemoContext';
-import { ocrService } from '../services';
+import { ocrService, documentService } from '../services';
 
 const OCRExtractionPage = () => {
-  const { documents, updateOCRStatus } = useDemoData();
+  const [documents, setDocuments] = useState([]);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [extractedData, setExtractedData] = useState({});
   const [manualEdit, setManualEdit] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Filtrar solo documentos OCR
+  // Cargar documentos desde el backend
+  useEffect(() => {
+    loadDocuments();
+  }, []);
+
+  const loadDocuments = async () => {
+    try {
+      const docs = await documentService.listDocuments();
+      setDocuments(docs || []);
+    } catch (error) {
+      console.error('Error cargando documentos:', error);
+      showToast('Error al cargar documentos', 'error');
+    }
+  };
+
+  // Filtrar solo documentos OCR (según Escenario 1.2)
   const ocrDocuments = documents.filter(doc => 
-    ['DOC_OCR_1', 'DOC_OCR_2', 'DOC_OCR_ERR'].includes(doc.id)
+    ['DOC_OCR_1', 'DOC_OCR_2', 'DOC_OCR_3', 'DOC_OCR_ERR'].includes(doc.id) ||
+    doc.estado === 'PENDIENTE' ||
+    doc.tipo?.includes('Cédula') || doc.tipo?.includes('Pasaporte') || doc.tipo?.includes('Visa')
   );
 
   const showToast = (message, type = 'info') => {
@@ -32,45 +48,88 @@ const OCRExtractionPage = () => {
       // Llamar al servicio OCR real del backend
       const result = await ocrService.processExistingDocument(doc.id);
       
-      if (result.status === 'ok') {
-        // Extracción exitosa
-        const data = {
-          status: 'COMPLETADO',
-          confidence: result.confianza || 0.95,
-          fields: result.datos || {},
-        };
+      if (result.status === 'ok' && result.datos) {
+        const confianza = result.confianza || 0.95;
         
-        setExtractedData(data);
-        updateOCRStatus(doc.id, 'PROCESADO');
-        showToast('Extracción completada exitosamente', 'success');
+        // Escenario 1.2: Detección de baja confianza (< 0.60)
+        if (confianza < 0.60) {
+          const data = {
+            status: 'REVISION_MANUAL',
+            confidence: confianza,
+            fields: result.datos,
+          };
+          setExtractedData(data);
+          updateOCRStatus(doc.id, 'REVISION_MANUAL');
+          showToast(`Confianza baja (${(confianza * 100).toFixed(0)}%). Campos marcados para revisión manual`, 'warning');
+          setManualEdit(true);
+        } else {
+          // Confianza alta - Completado automáticamente
+          const data = {
+            status: 'COMPLETADO',
+            confidence: confianza,
+            fields: result.datos,
+          };
+          setExtractedData(data);
+          updateOCRStatus(doc.id, 'COMPLETADO');
+          showToast(`Extracción completada (confianza: ${(confianza * 100).toFixed(0)}%)`, 'success');
+          loadDocuments(); // Recargar documentos
+        }
       } else {
-        // Error de lectura
-        showToast('No se pudo extraer información automáticamente', 'error');
-        setManualEdit(true);
-        setExtractedData({
-          status: 'ERROR',
-          confidence: 0,
-          fields: {},
-        });
+        // Error de lectura (status !== 'ok')
+        throw new Error('UnreadableFileException');
       }
     } catch (error) {
       console.error('Error al procesar documento:', error);
       
-      // Si el backend retorna error 400, habilitar ingreso manual
-      if (error.response?.status === 400) {
-        showToast('No se pudo extraer información automáticamente', 'error');
-        setManualEdit(true);
-        setExtractedData({
-          status: 'ERROR',
-          confidence: 0,
-          fields: {},
-        });
-      } else {
-        showToast(error.response?.data?.detail || 'Error al procesar el documento', 'error');
-      }
+      // Escenario 1.2: Habilitación de ingreso manual ante fallo en lectura
+      showToast('No se pudo extraer información automáticamente', 'error');
+      setManualEdit(true);
+      
+      // Inicializar campos según tipo de documento
+      const fieldsTemplate = getDocumentFieldsTemplate(doc.tipo_documento);
+      
+      setExtractedData({
+        status: 'ERROR',
+        confidence: 0,
+        fields: fieldsTemplate,
+        error: 'UnreadableFileException',
+      });
+      updateOCRStatus(doc.id, 'ERROR');
     } finally {
       setProcessing(false);
     }
+  };
+
+  // Plantilla de campos según tipo de documento (Escenario 1.2)
+  const getDocumentFieldsTemplate = (tipoDoc) => {
+    const templates = {
+      'Cédula Ecuador': {
+        'Número de Cédula': { value: '', manual: true, pattern: '^[0-9]{10}$', description: '10 dígitos numéricos' },
+        'Nombres': { value: '', manual: true },
+        'Apellidos': { value: '', manual: true },
+        'Fecha de Nacimiento': { value: '', manual: true },
+      },
+      'Pasaporte': {
+        'Número de Pasaporte': { value: '', manual: true, pattern: '^[A-Z0-9]{6,9}$' },
+        'Nombres': { value: '', manual: true },
+        'Apellidos': { value: '', manual: true },
+        'Nacionalidad': { value: '', manual: true },
+        'Fecha de Nacimiento': { value: '', manual: true },
+        'Fecha de Emisión': { value: '', manual: true },
+        'Fecha de Vencimiento': { value: '', manual: true },
+      },
+      'Visa Americana': {
+        'Número de Control': { value: '', manual: true, pattern: '^[0-9]{12,14}$', description: 'Formato Visa USA' },
+        'Tipo de Visa': { value: '', manual: true },
+        'Fecha de Emisión': { value: '', manual: true },
+        'Fecha de Vencimiento': { value: '', manual: true },
+      },
+    };
+    
+    return templates[tipoDoc] || {
+      'Campo 1': { value: '', manual: true },
+      'Campo 2': { value: '', manual: true },
+    };
   };
 
   const handleFieldChange = (fieldName, value) => {
@@ -84,10 +143,28 @@ const OCRExtractionPage = () => {
   };
 
   const handleSaveManualData = async () => {
+    // Validar campos según regex pattern (Escenario 1.2)
+    let hasErrors = false;
+    const validatedFields = { ...extractedData.fields };
+    
+    Object.entries(validatedFields).forEach(([fieldName, fieldData]) => {
+      if (fieldData.pattern && fieldData.value) {
+        const regex = new RegExp(fieldData.pattern);
+        if (!regex.test(fieldData.value)) {
+          showToast(`El campo "${fieldName}" no cumple el formato esperado`, 'error');
+          hasErrors = true;
+        }
+      }
+    });
+    
+    if (hasErrors) return;
+    
     try {
-      // await ocrService.updateManualData(selectedDoc.id, extractedData);
+      // Actualizar estado del documento
+      updateOCRStatus(selectedDoc.id, 'COMPLETADO');
       showToast('Datos guardados correctamente', 'success');
       setManualEdit(false);
+      setExtractedData(prev => ({ ...prev, status: 'COMPLETADO' }));
     } catch (error) {
       showToast('Error al guardar los datos', 'error');
     }
@@ -116,13 +193,13 @@ const OCRExtractionPage = () => {
               <h2 className="text-lg font-bold text-slate-900">
                 Cola de Verificación
                 <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-bold bg-primary text-white">
-                  {documents.filter(d => d.status === 'PENDIENTE').length}
+                  {ocrDocuments.filter(d => d.estado_ocr === 'PENDIENTE' || d.status === 'PENDIENTE').length}
                 </span>
               </h2>
             </div>
 
             <div className="flex-1 overflow-auto space-y-3">
-              {documents.map(doc => (
+              {ocrDocuments.map(doc => (
                 <div
                   key={doc.id}
                   className={`p-4 border rounded-lg cursor-pointer transition-all ${
@@ -138,15 +215,21 @@ const OCRExtractionPage = () => {
                       <span className="font-medium text-slate-900 text-sm">{doc.id}</span>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      doc.status === 'PENDIENTE' 
+                      doc.estado_ocr === 'PENDIENTE' || doc.status === 'PENDIENTE'
                         ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-green-100 text-green-700'
+                        : doc.estado_ocr === 'COMPLETADO'
+                        ? 'bg-green-100 text-green-700'
+                        : doc.estado_ocr === 'REVISION_MANUAL'
+                        ? 'bg-orange-100 text-orange-700'
+                        : doc.estado_ocr === 'ERROR'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-slate-100 text-slate-700'
                     }`}>
-                      {doc.status}
+                      {doc.estado_ocr || doc.status}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-700">{doc.type}</p>
-                  <p className="text-xs text-slate-500 mt-1">{doc.file} • {doc.caseId}</p>
+                  <p className="text-sm text-slate-700">{doc.tipo_documento || doc.type}</p>
+                  <p className="text-xs text-slate-500 mt-1">{doc.name} • {doc.caseId}</p>
                 </div>
               ))}
             </div>
@@ -164,8 +247,8 @@ const OCRExtractionPage = () => {
                 <div className="p-6 border-b border-slate-100">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-lg font-bold text-slate-900">{selectedDoc.file}</h2>
-                      <p className="text-sm text-slate-500">{selectedDoc.type} • {selectedDoc.caseId}</p>
+                      <h2 className="text-lg font-bold text-slate-900">{selectedDoc.name}</h2>
+                      <p className="text-sm text-slate-500">{selectedDoc.tipo_documento || selectedDoc.type} • {selectedDoc.caseId}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className={`px-3 py-1 rounded-lg ${getConfidenceBadge(extractedData.confidence)}`}>
@@ -230,6 +313,11 @@ const OCRExtractionPage = () => {
                               : 'bg-slate-50'
                           } focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed`}
                         />
+                        {fieldData.description && (
+                          <span className="text-xs text-slate-500 mt-1">
+                            ℹ️ {fieldData.description}
+                          </span>
+                        )}
                         {fieldData.manual && (
                           <span className="text-xs text-blue-600 mt-1">✏️ Editado manualmente</span>
                         )}

@@ -55,5 +55,76 @@ export const documentService = {
     }
     
     return documento;
+  },
+
+  /**
+   * Actualizar documento
+   * @param {string} docId - ID del documento
+   * @param {Object} updates - Datos a actualizar
+   * @returns {Promise}
+   */
+  updateDocument: async (docId, updates) => {
+    const response = await api.put(`/documentos/${docId}`, updates);
+    return response.data;
+  },
+
+  /**
+   * Eliminar documento
+   * @param {string} docId - ID del documento
+   * @returns {Promise}
+   */
+  deleteDocument: async (docId) => {
+    const response = await api.delete(`/documentos/${docId}`);
+    return response.data;
+  },
+
+  /**
+   * Descargar archivo del documento
+   * @param {string} docId - ID del documento
+   * @returns {Promise}
+   */
+  downloadFile: async (docId) => {
+    const response = await api.get(`/documentos/${docId}/download`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  /**
+   * Obtener URL para visualizar documento
+   * @param {string} docId - ID del documento
+   * @returns {string} URL del archivo
+   */
+  getViewUrl: (docId) => {
+    return `${api.defaults.baseURL}/documentos/${docId}/view`;
+  },
+
+  /**
+   * Extraer datos del documento usando OCR
+   * @param {string} docId - ID del documento
+   * @returns {Promise}
+   */
+  extractOCR: async (docId) => {
+    const response = await api.post(`/documentos/${docId}/ocr`);
+    return response.data;
+  },
+
+  /**
+   * Guardar datos extraídos por OCR
+   * @param {string} docId - ID del documento
+   * @param {object} ocrData - Datos OCR extraídos
+   * @returns {Promise}
+   */
+  saveOCRData: async (docId, ocrData) => {
+    // Primero obtener el documento actual
+    const docActual = await api.get(`/documentos/${docId}`);
+    
+    // Actualizar con PUT incluyendo todos los campos requeridos
+    const response = await api.put(`/documentos/${docId}`, {
+      ...docActual.data,
+      datos_extraidos: ocrData.datos_extraidos,
+      nivel_confianza: ocrData.nivel_confianza
+    });
+    return response.data;
   }
 };

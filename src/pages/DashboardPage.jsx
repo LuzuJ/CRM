@@ -1,15 +1,16 @@
-import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { useDemoData } from '../contexts/DemoContext';
+import Toast from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
 import { dashboardService } from '../services';
 
 const DashboardPage = () => {
-  const { cases: fallbackCases, documents: fallbackDocs, appointments: fallbackAppts, profiles: fallbackProfiles, activities: fallbackActivities } = useDemoData();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
   const [cases, setCases] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -27,20 +28,19 @@ const DashboardPage = () => {
       const data = await dashboardService.getSummary();
       setDashboardData(data);
       
-      // Usar datos del backend si están disponibles
-      setCases(data.tramites || fallbackCases);
-      setDocuments(data.documentos || fallbackDocs);
-      setAppointments(data.citas || fallbackAppts);
-      setProfiles(fallbackProfiles); // Usar fallback para perfiles por ahora
-      setActivities(fallbackActivities || []); // Usar fallback para actividades
+      // Usar solo datos del backend
+      setCases(data.tramites || []);
+      setDocuments(data.documentos || []);
+      setAppointments(data.citas || []);
+      setProfiles([]);
+      setActivities([]);
     } catch (error) {
-      console.error('Error al cargar dashboard:', error);
-      // Si falla, usar datos locales del contexto
-      setCases(fallbackCases);
-      setDocuments(fallbackDocs);
-      setAppointments(fallbackAppts);
-      setProfiles(fallbackProfiles);
-      setActivities(fallbackActivities || []);
+      console.error('Error al cargar dashboard del backend:', error);
+      setCases([]);
+      setDocuments([]);
+      setAppointments([]);
+      setProfiles([]);
+      setActivities([]);
     } finally {
       setLoading(false);
     }
@@ -51,9 +51,37 @@ const DashboardPage = () => {
       await dashboardService.executeMonitoring();
       // Recargar datos después del monitoreo
       await loadDashboardData();
+      showToast('Monitoreo ejecutado exitosamente', 'success');
     } catch (error) {
       console.error('Error al ejecutar monitoreo:', error);
+      showToast('Error al ejecutar monitoreo', 'error');
     }
+  };
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // Navegación a páginas
+  const handleNewCase = () => {
+    navigate('/cases');
+    showToast('Ir a Casos para crear un nuevo trámite', 'info');
+  };
+
+  const handleUploadDocument = () => {
+    navigate('/mailroom');
+    showToast('Ir a Mailroom para subir documentos', 'info');
+  };
+
+  const handleScheduleAppointment = () => {
+    navigate('/appointments');
+    showToast('Ir a Appointments para agendar citas', 'info');
+  };
+
+  const handleSearchCase = () => {
+    navigate('/cases');
+    showToast('Ir a Casos para buscar trámites', 'info');
   };
   
   // Filtrar datos según el rol
@@ -121,6 +149,7 @@ const DashboardPage = () => {
 
   return (
     <Layout title={`Bienvenido, ${user?.name}`} subtitle={getWelcomeMessage()}>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <div className="space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -148,19 +177,31 @@ const DashboardPage = () => {
           <div className="bg-white rounded-xl shadow-card p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4">Acciones Rápidas</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-slate-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <button 
+                onClick={handleNewCase}
+                className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-slate-200 hover:border-primary hover:bg-primary/5 transition-all"
+              >
                 <span className="material-symbols-outlined text-primary text-[32px]">add_circle</span>
                 <span className="text-sm font-medium text-slate-700">Nuevo Trámite</span>
               </button>
-              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-slate-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <button 
+                onClick={handleUploadDocument}
+                className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-slate-200 hover:border-primary hover:bg-primary/5 transition-all"
+              >
                 <span className="material-symbols-outlined text-primary text-[32px]">upload_file</span>
                 <span className="text-sm font-medium text-slate-700">Subir Documento</span>
               </button>
-              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-slate-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <button 
+                onClick={handleScheduleAppointment}
+                className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-slate-200 hover:border-primary hover:bg-primary/5 transition-all"
+              >
                 <span className="material-symbols-outlined text-primary text-[32px]">event</span>
                 <span className="text-sm font-medium text-slate-700">Agendar Cita</span>
               </button>
-              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-slate-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <button 
+                onClick={handleSearchCase}
+                className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-slate-200 hover:border-primary hover:bg-primary/5 transition-all"
+              >
                 <span className="material-symbols-outlined text-primary text-[32px]">search</span>
                 <span className="text-sm font-medium text-slate-700">Buscar Caso</span>
               </button>

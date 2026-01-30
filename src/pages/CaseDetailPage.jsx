@@ -1,20 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Toast from '../components/Toast';
-import { useDemoData } from '../contexts/DemoContext';
 import { useAuth } from '../contexts/AuthContext';
+import { caseService, documentService } from '../services';
 
 const CaseDetailPage = () => {
   const { caseId } = useParams();
-  const { cases, documents, appointments } = useDemoData();
+  const [caseData, setCaseData] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const { user, canAccessCase } = useAuth();
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState('documents');
+  const [loading, setLoading] = useState(true);
 
-  const caseData = cases.find(c => c.id === caseId);
-  const caseDocuments = documents.filter(d => d.caseId === caseId);
-  const caseAppointments = appointments.filter(a => a.caseId === caseId);
+  useEffect(() => {
+    loadCaseData();
+  }, [caseId]);
+
+  const loadCaseData = async () => {
+    try {
+      setLoading(true);
+      const cases = await caseService.listCases();
+      const foundCase = cases.find(c => c.id === caseId);
+      setCaseData(foundCase);
+      
+      if (foundCase) {
+        const allDocs = await documentService.listDocuments();
+        const caseDocs = allDocs.filter(d => d.tramite_id === caseId);
+        setDocuments(caseDocs);
+      }
+      
+      setAppointments([]); // Backend no tiene citas aún
+    } catch (error) {
+      console.error('Error al cargar datos del caso:', error);
+      showToast('Error al cargar datos del caso', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const caseDocuments = documents;
+  const caseAppointments = appointments;
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
